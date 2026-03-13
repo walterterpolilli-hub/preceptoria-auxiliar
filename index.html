@@ -3,7 +3,11 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Sistema de Preceptoría Auxiliar</title>
+  <title>SPA</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 160'><ellipse cx='100' cy='28' rx='8' ry='22' fill='%23cc1a00'/><rect x='93' y='6' width='14' height='10' rx='4' fill='%23cc1a00'/><ellipse cx='100' cy='80' rx='52' ry='36' fill='%23c8920a'/><rect x='48' y='80' width='104' height='52' rx='6' fill='%23c8920a'/><path d='M48 82 Q36 100 40 120 L58 120 Q52 102 54 82 Z' fill='%23b07a08'/><path d='M152 82 Q164 100 160 120 L142 120 Q148 102 146 82 Z' fill='%23b07a08'/><rect x='88' y='88' width='24' height='36' rx='5' fill='%237a5200'/><rect x='52' y='88' width='30' height='9' rx='3' fill='%232a1800'/><rect x='118' y='88' width='30' height='9' rx='3' fill='%232a1800'/><ellipse cx='78' cy='68' rx='16' ry='10' fill='%23e8c84a' opacity='0.25'/></svg>"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-title" content="SPA"/>
+  <meta name="theme-color" content="#1e293b"/>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
@@ -33,7 +37,7 @@ const TIPOS_ACC   = ["Caída en patio","Caída en aula","Caída en escalera","Go
 const VINCULOS    = ["Madre","Padre","Tutor/a","Abuelo/a","Otro familiar"];
 const MEDIOS      = ["Nota en agenda","Llamado telefónico","WhatsApp","Presencial","Correo electrónico"];
 const TRASLADOS   = ["No","Sí — Retirado por familiar","Sí — SAME / Ambulancia","Sí — Guardia médica"];
-const TIPOS_PASE  = ["Pase de ingreso tardío","Pase de retiro anticipado","Certificado médico","Nota informativa","Solicitud de reunión","Autorización de salida","Otro documento"];
+const TIPOS_PASE  = ["Pase","Certificado médico","Nota informativa","Solicitud de reunión","Autorización de salida","Otro documento"];
 
 // ── HELPERS ─────────────────────────────────────────────────────
 const hoyISO    = () => new Date().toISOString().slice(0,10);
@@ -90,7 +94,7 @@ const PRINT_CSS=`
 `;
 function printDoc(html, title) {
   const w = window.open("","_blank");
-  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title><style>${PRINT_CSS}</style></head><body>${html}<div style="margin-top:24px;font-size:9pt;color:#aaa;text-align:center;border-top:1px solid #eee;padding-top:6px">Sistema de Preceptoría Auxiliar — ${new Date().toLocaleString("es-AR")}</div></body></html>`);
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title><style>${PRINT_CSS}</style></head><body>${html}<div style="margin-top:24px;font-size:9pt;color:#aaa;text-align:center;border-top:1px solid #eee;padding-top:6px">SPA — ${new Date().toLocaleString("es-AR")}</div></body></html>`);
   w.document.close();
   setTimeout(()=>{w.focus();w.print();},400);
 }
@@ -291,22 +295,22 @@ function ModTarde({records, setRecords, alumnos, escuela, syncStatus}) {
   const borrar = async id => { setRecords(p=>p.filter(x=>x.id!==id)); await api({action:"deleteRecord",type:"tarde",id}); };
 
   const imprimirFicha = r => printDoc(`
-    <div class="hdr"><h1>${escuela||"Establecimiento Educativo"}</h1><div class="sub">Preceptoría Auxiliar — Registro de Llegada Tarde</div></div>
+    <div class="hdr"><h1>${escuela||"Colegio Fragata Libertad"}</h1><div class="sub">SPA — Registro de Llegada Tarde</div></div>
     <div class="campo"><label>Alumno/a</label><div class="valor">${r.alumno}</div></div>
     <div class="campo"><label>Curso</label><div class="valor">${r.curso}</div></div>
     <div class="campo"><label>Fecha</label><div class="valor">${fechaLarga(r.fecha)}</div></div>
     <div class="campo"><label>Hora de llegada</label><div class="valor">${r.hora}</div></div>
     <div class="campo"><label>Motivo</label><div class="valor">${r.motivo||"—"}</div></div>
     <div class="campo"><label>Preceptor/a notificado/a</label><div class="valor">${r.notificado||"—"}</div></div>
-    <div class="fila-firmas"><div class="firma">Alumno/a</div><div class="firma">Preceptor/a Auxiliar</div><div class="firma">Preceptor/a de Curso</div></div>`,
+    <div class="fila-firmas"><div class="firma">Alumno/a</div><div class="firma">Preceptor/a</div><div class="firma">Preceptor/a de Curso</div></div>`,
   `Tardanza ${r.alumno}`);
 
   const imprimirInforme = curso => {
     const lista = tardes.filter(r=>r.curso===curso);
-    printDoc(`<div class="hdr"><h1>${escuela||"Establecimiento Educativo"}</h1><div class="sub">Preceptoría Auxiliar — Informe de Llegadas Tarde · ${curso}</div></div>
+    printDoc(`<div class="hdr"><h1>${escuela||"Colegio Fragata Libertad"}</h1><div class="sub">SPA — Informe de Llegadas Tarde · ${curso}</div></div>
       <table><thead><tr><th>Alumno/a</th><th>Fecha</th><th>Hora</th><th>Motivo</th></tr></thead>
       <tbody>${lista.map(r=>`<tr><td>${r.alumno}</td><td>${fmtFecha(r.fecha)}</td><td>${r.hora||"—"}</td><td>${r.motivo||"—"}</td></tr>`).join("")}</tbody></table>
-      <div class="fila-firmas"><div class="firma">Preceptor/a Auxiliar</div><div class="firma">Preceptor/a de Curso (${curso})</div></div>`,
+      <div class="fila-firmas"><div class="firma">Preceptor/a</div><div class="firma">Preceptor/a de Curso (${curso})</div></div>`,
     `Tardanzas ${curso}`);
   };
 
@@ -377,7 +381,7 @@ function ModCitacion({records, setRecords, alumnos, escuela, syncStatus}) {
 
   // Imprimir local
   const imprimir = r => printDoc(`
-    <div class="hdr"><h1>${escuela||"Establecimiento Educativo"}</h1><div class="sub">Preceptoría Auxiliar — Formulario de Citación a Familia</div></div>
+    <div class="hdr"><h1>${escuela||"Colegio Fragata Libertad"}</h1><div class="sub">SPA — Formulario de Citación a Familia</div></div>
     <div class="campo"><label>Alumno/a</label><div class="valor">${r.alumno}</div></div>
     <div class="campo"><label>Curso</label><div class="valor">${r.curso}</div></div>
     <div class="campo"><label>Fecha</label><div class="valor">${fechaLarga(r.fecha)}</div></div>
@@ -389,7 +393,7 @@ function ModCitacion({records, setRecords, alumnos, escuela, syncStatus}) {
     <div class="campo"><label>Fecha cita</label><div class="valor">${r.fecha_cita?fechaLarga(r.fecha_cita):"&nbsp;"}</div></div>
     <div class="campo"><label>Hora</label><div class="valor">${r.hora_cita||"&nbsp;"}</div></div>
     <div class="campo"><label>Observaciones</label><div class="valor" style="min-height:40px">${r.obs||"&nbsp;"}</div></div>
-    <div class="fila-firmas"><div class="firma">Familiar/Tutor<br><small>Aclaración:____________</small></div><div class="firma">Preceptor/a Auxiliar</div><div class="firma">Dirección</div></div>`,
+    <div class="fila-firmas"><div class="firma">Familiar/Tutor<br><small>Aclaración:____________</small></div><div class="firma">Preceptor/a</div><div class="firma">Dirección</div></div>`,
   `Citación — ${r.alumno}`);
 
   const citas = records.filter(r=>r.type==="citacion");
@@ -473,7 +477,7 @@ function ModAccidente({records, setRecords, alumnos, escuela, syncStatus}) {
   const borrar = async id => { setRecords(p=>p.filter(x=>x.id!==id)); await api({action:"deleteRecord",type:"accidente",id}); };
 
   const imprimir = r => printDoc(`
-    <div class="hdr"><h1>${escuela||"Establecimiento Educativo"}</h1><div class="sub">Preceptoría Auxiliar — Acta de Accidente Escolar</div></div>
+    <div class="hdr"><h1>${escuela||"Colegio Fragata Libertad"}</h1><div class="sub">SPA — Acta de Accidente Escolar</div></div>
     <p style="text-align:center;font-size:10pt;margin-bottom:16px;color:#dc2626;font-weight:700">N.° ACC-${String(r.id).slice(-6)} · ${fechaLarga(r.fecha)} · ${r.hora||""}</p>
     <div class="campo"><label>Alumno/a</label><div class="valor">${r.alumno}</div></div>
     <div class="campo"><label>Curso</label><div class="valor">${r.curso}</div></div>
@@ -487,7 +491,7 @@ function ModAccidente({records, setRecords, alumnos, escuela, syncStatus}) {
     <div class="campo"><label>Directivo notificado</label><div class="valor">${r.directivo||"&nbsp;"}</div></div>
     <div class="campo"><label>Observaciones</label><div class="valor" style="min-height:40px">${r.obs||"&nbsp;"}</div></div>
     ${r.certBase64?`<h2 style="border-bottom:1px solid #999;margin:18px 0 8px;color:#065f46">Certificado médico adjunto</h2><img src="${r.certBase64}" class="cert-img"/>`:""}
-    <div class="fila-firmas"><div class="firma">Alumno/a o familiar<br><small>Aclaración:___________</small></div><div class="firma">Docente a cargo</div><div class="firma">Preceptor/a Auxiliar</div><div class="firma">Dirección</div></div>`,
+    <div class="fila-firmas"><div class="firma">Alumno/a o familiar<br><small>Aclaración:___________</small></div><div class="firma">Docente a cargo</div><div class="firma">Preceptor/a</div><div class="firma">Dirección</div></div>`,
   `Acta Accidente — ${r.alumno}`);
 
   const acc = records.filter(r=>r.type==="accidente");
@@ -577,7 +581,7 @@ function ModPases({records, setRecords, alumnos, escuela, syncStatus}) {
   };
 
   const imprimirRecibo = r => printDoc(`
-    <div class="hdr"><h1>${escuela||"Establecimiento Educativo"}</h1><div class="sub">Preceptoría Auxiliar — Recepción de Documentación</div></div>
+    <div class="hdr"><h1>${escuela||"Colegio Fragata Libertad"}</h1><div class="sub">SPA — Recepción de Documentación</div></div>
     <div class="campo"><label>Fecha y hora</label><div class="valor">${fechaLarga(r.fecha)} — ${r.hora||"—"}</div></div>
     <div class="campo"><label>Alumno/a</label><div class="valor">${r.alumno}</div></div>
     <div class="campo"><label>Curso</label><div class="valor">${r.curso}</div></div>
@@ -587,7 +591,7 @@ function ModPases({records, setRecords, alumnos, escuela, syncStatus}) {
     <div class="campo"><label>Vínculo</label><div class="valor">${r.vinculo||"&nbsp;"}</div></div>
     <div class="campo"><label>Contacto</label><div class="valor">${r.contacto||"&nbsp;"}</div></div>
     <div class="campo"><label>Observaciones</label><div class="valor" style="min-height:40px">${r.obs||"&nbsp;"}</div></div>
-    <div class="fila-firmas"><div class="firma">Firma adulto responsable<br><small>Aclaración:___________</small></div><div class="firma">Preceptor/a Auxiliar</div></div>`,
+    <div class="fila-firmas"><div class="firma">Firma adulto responsable<br><small>Aclaración:___________</small></div><div class="firma">Preceptor/a</div></div>`,
   `Pase — ${r.alumno}`);
 
   const pases = records.filter(r=>r.type==="pase");
@@ -693,7 +697,7 @@ function ModInforme({records, escuela}) {
         </div>
       </div>`).join("");
     printDoc(`
-      <div class="hdr"><h1>${escuela||"Establecimiento Educativo"}</h1><div class="sub">Preceptoría Auxiliar — Informe Diario · ${fechaLarga(fecha)}</div></div>
+      <div class="hdr"><h1>${escuela||"Colegio Fragata Libertad"}</h1><div class="sub">SPA — Informe Diario · ${fechaLarga(fecha)}</div></div>
       <div style="background:#f0f4ff;border:1px solid #c7d2fe;border-radius:6px;padding:12px;margin-bottom:18px;text-align:center">
         <span style="display:inline-block;margin-right:20px"><b style="font-size:15pt;color:#4f46e5;display:block">${tardes.length}</b>Tardanzas</span>
         <span style="display:inline-block;margin-right:20px"><b style="font-size:15pt;color:#b45309;display:block">${citas.length}</b>Citaciones</span>
@@ -706,7 +710,7 @@ function ModInforme({records, escuela}) {
       ${citas.length>0?`<h2>Citaciones</h2><table><thead><tr><th>Alumno/a</th><th>Curso</th><th>Motivo</th><th>Familiar</th><th>Cita</th></tr></thead><tbody>${citas.map(r=>`<tr><td>${r.alumno}</td><td>${r.curso}</td><td>${r.motivo}</td><td>${r.familiar||"—"}</td><td>${r.fecha_cita?fmtFecha(r.fecha_cita)+" "+r.hora_cita:"—"}</td></tr>`).join("")}</tbody></table>`:""}
       ${accs.length>0?`<h2>Accidentes</h2><table><thead><tr><th>Alumno/a</th><th>Curso</th><th>Hora</th><th>Tipo</th><th>Docente</th><th>Traslado</th></tr></thead><tbody>${accs.map(r=>`<tr><td>${r.alumno}</td><td>${r.curso}</td><td>${r.hora||"—"}</td><td>${r.tipo}</td><td>${r.profesor||"—"}</td><td>${r.traslado}</td></tr>`).join("")}</tbody></table>`:""}
       ${pases.length>0?`<h2>Pases y Documentación</h2><table><thead><tr><th>Alumno/a</th><th>Curso</th><th>Hora</th><th>Tipo</th><th>Motivo</th><th>Adulto</th></tr></thead><tbody>${pases.map(r=>`<tr><td>${r.alumno}</td><td>${r.curso}</td><td>${r.hora||"—"}</td><td>${r.tipoDoc||"—"}</td><td>${r.motivo||"—"}</td><td>${r.adulto||"—"}</td></tr>`).join("")}</tbody></table>`:""}
-      <div class="fila-firmas"><div class="firma">Preceptor/a Auxiliar</div><div class="firma">Sello y firma Dirección</div></div>`,
+      <div class="fila-firmas"><div class="firma">Preceptor/a</div><div class="firma">Sello y firma Dirección</div></div>`,
     `Informe Diario ${fmtFecha(fecha)}`);
   };
 
@@ -785,9 +789,9 @@ function Dashboard({records, alumnos, setTab, escuela, setEscuela, syncStatus, l
       </div> : <>
         <div className="flex items-start justify-between">
           <div>
-            <div className="text-3xl mb-1">🏫</div>
-            <h1 className="text-xl font-black tracking-tight">{escuela||"Sistema de Preceptoría"}</h1>
-            <p className="text-slate-400 text-xs mt-0.5">Preceptor/a Auxiliar</p>
+            <div className="flex items-center gap-3 mb-1"><span dangerouslySetInnerHTML={{__html: '<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 200 160\" width=\"44\" height=\"44\"><ellipse cx=\"100\" cy=\"28\" rx=\"8\" ry=\"22\" fill=\"#cc1a00\"/><rect x=\"93\" y=\"6\" width=\"14\" height=\"10\" rx=\"4\" fill=\"#cc1a00\"/><ellipse cx=\"100\" cy=\"80\" rx=\"52\" ry=\"36\" fill=\"#c8920a\"/><rect x=\"48\" y=\"80\" width=\"104\" height=\"52\" rx=\"6\" fill=\"#c8920a\"/><ellipse cx=\"100\" cy=\"80\" rx=\"52\" ry=\"36\" fill=\"none\" stroke=\"#8a6000\" stroke-width=\"2.5\"/><path d=\"M48 82 Q36 100 40 120 L58 120 Q52 102 54 82 Z\" fill=\"#b07a08\"/><path d=\"M152 82 Q164 100 160 120 L142 120 Q148 102 146 82 Z\" fill=\"#b07a08\"/><rect x=\"88\" y=\"88\" width=\"24\" height=\"36\" rx=\"5\" fill=\"#7a5200\"/><rect x=\"52\" y=\"88\" width=\"30\" height=\"9\" rx=\"3\" fill=\"#2a1800\"/><rect x=\"118\" y=\"88\" width=\"30\" height=\"9\" rx=\"3\" fill=\"#2a1800\"/><ellipse cx=\"78\" cy=\"68\" rx=\"16\" ry=\"10\" fill=\"#e8c84a\" opacity=\"0.25\"/><ellipse cx=\"74\" cy=\"64\" rx=\"7\" ry=\"4\" fill=\"#fff\" opacity=\"0.15\"/></svg>'}}/></div>
+            <h1 className="text-xl font-black tracking-tight">{escuela||"Colegio Fragata Libertad"}</h1>
+            <p className="text-slate-400 text-xs mt-0.5">Preceptor/a</p>
           </div>
           <div className="flex flex-col items-end gap-2">
             <button onClick={()=>{setTmpEsc(escuela);setEditEsc(true);}} className="text-xs bg-white/10 hover:bg-white/20 px-2 py-1 rounded-lg text-white/60">✏️ Editar</button>
@@ -835,7 +839,7 @@ function Dashboard({records, alumnos, setTab, escuela, setEscuela, syncStatus, l
     </Card>}
     <Card>
       <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">📁 Carpeta en Drive</p>
-      <p className="text-xs text-gray-500 leading-relaxed">Todo queda guardado automáticamente en <strong>"Preceptoría Auxiliar"</strong> en tu Google Drive, organizado en subcarpetas: Actas de Accidente, Citaciones, Informes Diarios.</p>
+      <p className="text-xs text-gray-500 leading-relaxed">Todo queda guardado automáticamente en <strong>"SPA"</strong> en tu Google Drive, organizado en subcarpetas: Actas de Accidente, Citaciones, Informes Diarios.</p>
     </Card>
   </div>;
 }
