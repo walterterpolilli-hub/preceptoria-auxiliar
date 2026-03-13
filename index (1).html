@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sistema de Preceptoría Auxiliar</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body{font-family:'Segoe UI',system-ui,sans-serif;background:#f9fafb}
+    ::-webkit-scrollbar{width:4px}
+    ::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:99px}
+    .spin{animation:spin 1s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef} = React;
+
+// ════════════════════════════════════════════════════════════════
+// ⚠️  PEGÁ AQUÍ LA URL DE TU APPS SCRIPT DEPLOYMENT
+// ════════════════════════════════════════════════════════════════
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxctvonVpuPWRhFarwclyoPzMBMkDYi1atqDYyDEqQ8OTHyG41-d8A8txtVIaxkBiIWKg/exec";
+// ════════════════════════════════════════════════════════════════
+
+// ── CONSTANTES ──────────────────────────────────────────────────
+const MOTIVOS_CIT = ["Uniforme incompleto o inadecuado","Problemas de convivencia","Reiteradas llegadas tarde","Inasistencias reiteradas","Conducta inapropiada","Situación familiar","Bajo rendimiento académico","Otro motivo"];
+const TIPOS_ACC   = ["Caída en patio","Caída en aula","Caída en escalera","Golpe con compañero","Golpe con mobiliario","Herida cortante","Torcedura / esguince","Otro"];
+const VINCULOS    = ["Madre","Padre","Tutor/a","Abuelo/a","Otro familiar"];
+const MEDIOS      = ["Nota en agenda","Llamado telefónico","WhatsApp","Presencial","Correo electrónico"];
+const TRASLADOS   = ["No","Sí — Retirado por familiar","Sí — SAME / Ambulancia","Sí — Guardia médica"];
+const TIPOS_PASE  = ["Pase de ingreso tardío","Pase de retiro anticipado","Certificado médico","Nota informativa","Solicitud de reunión","Autorización de salida","Otro documento"];
+
+// ── HELPERS ─────────────────────────────────────────────────────
+const hoyISO    = () => new Date().toISOString().slice(0,10);
+const horaAhora = () => new Date().toTimeString().slice(0,5);
+const fmtFecha  = iso => { if(!iso) return "—"; const [y,m,d]=iso.split("-"); return `${d}/${m}/${y}`; };
+const DIAS  = ["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
+const MESES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+const fechaLarga = iso => { if(!iso) return ""; const d=new Date(iso+"T12:00:00"); return `${DIAS[d.getDay()]} ${d.getDate()} de ${MESES[d.getMonth()]} de ${d.getFullYear()}`; };
+
+// ── STORAGE ─────────────────────────────────────────────────────
+const LS = {
+  get:(k,fb)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):fb;}catch{return fb;}},
+  set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));}catch{}}
+};
+
+// ── API ──────────────────────────────────────────────────────────
+async function api(payload) {
+  const r = await fetch(SCRIPT_URL, { method:"POST", body:JSON.stringify(payload) });
+  return r.json();
+}
+
+// ── DESCARGA BASE64 ──────────────────────────────────────────────
+function descargarPDF(base64, nombre) {
+  const bin = atob(base64);
+  const buf = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) buf[i]=bin.charCodeAt(i);
+  const blob = new Blob([buf],{type:"application/pdf"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = nombre;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ── PRINT LOCAL ──────────────────────────────────────────────────
+const PRINT_CSS=`
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Times New Roman',serif;font-size:12pt;color:#111;padding:2cm;line-height:1.5}
+  h1{font-size:16pt;margin-bottom:4px}
+  h2{font-size:13pt;margin:18px 0 6px;border-bottom:1px solid #999;padding-bottom:3px}
+  .hdr{text-align:center;margin-bottom:24px;border-bottom:2px solid #111;padding-bottom:12px}
+  .hdr .sub{font-size:10pt;color:#555;margin-top:3px}
+  .campo{margin-bottom:12px}
+  .campo label{font-weight:700;font-size:10pt;text-transform:uppercase;letter-spacing:.05em;color:#444;display:block;margin-bottom:2px}
+  .valor{border-bottom:1px solid #bbb;min-height:22px;padding:2px 4px;font-size:11.5pt}
+  .fila-firmas{display:flex;gap:40px;margin-top:48px}
+  .firma{flex:1;border-top:1px solid #555;padding-top:6px;text-align:center;font-size:10pt;color:#555}
+  table{width:100%;border-collapse:collapse;margin-top:8px;font-size:10.5pt}
+  th{background:#1e3a5f;color:#fff;border:1px solid #ccc;padding:6px 8px;text-align:left}
+  td{border:1px solid #ccc;padding:5px 8px;vertical-align:top}
+  tr:nth-child(even) td{background:#fafafa}
+  .cert-img{max-width:100%;margin-top:12px;border:1px solid #ddd}
+  @media print{body{padding:1.5cm}}
+`;
+function printDoc(html, title) {
+  const w = window.open("","_blank");
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title><style>${PRINT_CSS}</style></head><body>${html}<div style="margin-top:24px;font-size:9pt;color:#aaa;text-align:center;border-top:1px solid #eee;padding-top:6px">Sistema de Preceptoría Auxiliar — ${new Date().toLocaleString("es-AR")}</div></body></html>`);
+  w.document.close();
+  setTimeout(()=>{w.focus();w.print();},400);
+}
+
+// ── UI COMPONENTS ────────────────────────────────────────────────
+const iCls = "border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition w-full";
+const Lbl  = ({label,children}) => <div className="flex flex-col gap-1"><label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{label}</label>{children}</div>;
+const Inp  = ({label,...p}) => <Lbl label={label}><input className={iCls} {...p}/></Lbl>;
+const Sel  = ({label,opts,...p}) => <Lbl label={label}><select className={iCls} {...p}><option value="">— Seleccionar —</option>{opts.map(o=><option key={o} value={o}>{o}</option>)}</select></Lbl>;
+const Txa  = ({label,rows=3,...p}) => <Lbl label={label}><textarea className={`${iCls} resize-none`} rows={rows} {...p}/></Lbl>;
+const Card = ({children,xCls=""}) => <div className={`bg-white rounded-2xl shadow-sm border border-gray-100 p-5 ${xCls}`}>{children}</div>;
+
+function SyncBadge({status}) {
+  if(status==="ok")     return <span className="text-[10px] bg-green-100 text-green-700 border border-green-200 rounded-full px-2 py-0.5 font-bold">✓ Drive</span>;
+  if(status==="saving") return <span className="text-[10px] bg-blue-100 text-blue-700 border border-blue-200 rounded-full px-2 py-0.5 font-bold"><span className="spin inline-block">↻</span> Guardando</span>;
+  if(status==="error")  return <span className="text-[10px] bg-red-100 text-red-700 border border-red-200 rounded-full px-2 py-0.5 font-bold">✗ Error Drive</span>;
+  return null;
+}
+
+function Badge({color,children}) {
+  const c = {indigo:"bg-indigo-100 text-indigo-800 border-indigo-200",amber:"bg-amber-100 text-amber-800 border-amber-200",red:"bg-red-100 text-red-800 border-red-200",green:"bg-green-100 text-green-800 border-green-200",slate:"bg-slate-100 text-slate-700 border-slate-200",teal:"bg-teal-100 text-teal-800 border-teal-200"};
+  return <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${c[color]||c.slate}`}>{children}</span>;
+}
+
+function SecHdr({icon,title,sub,color}) {
+  const g={indigo:"from-indigo-600 to-indigo-900",amber:"from-amber-500 to-orange-700",red:"from-red-600 to-rose-800",slate:"from-slate-700 to-slate-900",green:"from-emerald-600 to-teal-800",teal:"from-teal-600 to-cyan-800"};
+  return <div className={`bg-gradient-to-br ${g[color]||g.slate} rounded-2xl p-5 mb-5 text-white shadow-lg`}>
+    <span className="text-3xl">{icon}</span>
+    <h2 className="text-xl font-black mt-1 tracking-tight">{title}</h2>
+    {sub && <p className="text-xs opacity-70 mt-0.5">{sub}</p>}
+  </div>;
+}
+
+function Aviso() {
+  return <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-700">⚠️ No hay alumnos cargados. Andá a <strong>Alumnos</strong> para cargar la lista primero.</div>;
+}
+
+// Botones de resultado Drive
+function DriveResult({res}) {
+  if(!res) return null;
+  return <div className="mt-3 bg-green-50 border border-green-200 rounded-xl px-4 py-3 space-y-2">
+    <p className="text-sm font-bold text-green-700">✅ PDF guardado en Drive</p>
+    <p className="text-[11px] text-green-600 truncate">📄 {res.name}</p>
+    <div className="flex gap-2 flex-wrap pt-1">
+      <a href={res.driveUrl} target="_blank" className="flex-1 text-center text-xs font-bold bg-white border border-green-300 text-green-700 hover:bg-green-50 px-3 py-2 rounded-lg transition">📂 Abrir en Drive</a>
+      <a href={res.downloadUrl} target="_blank" className="flex-1 text-center text-xs font-bold bg-white border border-green-300 text-green-700 hover:bg-green-50 px-3 py-2 rounded-lg transition">⬇️ Link descarga</a>
+      {res.base64 && <button onClick={()=>descargarPDF(res.base64,res.name)} className="flex-1 text-center text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg transition">💾 Guardar local</button>}
+    </div>
+    {/* Certificado médico — link a archivo original en Drive */}
+    {res.certDriveUrl && <div className="mt-2 bg-teal-50 border border-teal-200 rounded-lg px-3 py-2">
+      <p className="text-xs font-bold text-teal-700 mb-1">📎 Certificado médico guardado en calidad original</p>
+      <p className="text-[10px] text-teal-600 truncate mb-1.5">🗂 {res.certFileName}</p>
+      <div className="flex gap-2">
+        <a href={res.certDriveUrl} target="_blank" className="flex-1 text-center text-[10px] font-bold bg-white border border-teal-300 text-teal-700 hover:bg-teal-50 px-2 py-1.5 rounded-lg transition">🔍 Ver certificado</a>
+        {res.subFolderUrl && <a href={res.subFolderUrl} target="_blank" className="flex-1 text-center text-[10px] font-bold bg-white border border-teal-300 text-teal-700 hover:bg-teal-50 px-2 py-1.5 rounded-lg transition">📁 Abrir carpeta del accidente</a>}
+      </div>
+    </div>}
+  </div>;
+}
+
+// ── SELECTOR ALUMNO ──────────────────────────────────────────────
+function AlumnoSel({alumnos, value, onChange}) {
+  const [q,setQ]       = useState("");
+  const [open,setOpen] = useState(false);
+  const sel = alumnos.find(a=>a.id===value);
+  const lista = alumnos.filter(a=>`${a.apellido} ${a.nombre} ${a.curso}`.toLowerCase().includes(q.toLowerCase())).slice(0,25);
+  return <Lbl label="Alumno/a">
+    <div className="relative">
+      <div className={`${iCls} cursor-pointer flex items-center justify-between`} onClick={()=>setOpen(!open)}>
+        <span className={sel?"text-gray-800":"text-gray-400"}>{sel?`${sel.apellido}, ${sel.nombre} — ${sel.curso}`:"— Buscar alumno/a —"}</span>
+        <span className="text-gray-400 text-xs ml-2">{open?"▲":"▼"}</span>
+      </div>
+      {open && <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-2xl overflow-hidden">
+        <div className="p-2 border-b border-gray-100"><input autoFocus className="w-full text-sm px-2 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-200" placeholder="Buscar..." value={q} onChange={e=>setQ(e.target.value)}/></div>
+        <div className="max-h-52 overflow-y-auto">
+          {lista.length===0 && <p className="text-xs text-gray-400 p-3 text-center">Sin resultados</p>}
+          {lista.map(a=><div key={a.id} className="px-3 py-2 text-sm cursor-pointer hover:bg-indigo-50 flex justify-between" onClick={()=>{onChange(a.id);setOpen(false);setQ("");}}>
+            <span className="font-semibold text-gray-800">{a.apellido}, {a.nombre}</span>
+            <span className="text-gray-400">{a.curso}</span>
+          </div>)}
+        </div>
+      </div>}
+    </div>
+  </Lbl>;
+}
+
+// ── HISTORIAL ITEM ────────────────────────────────────────────────
+function HistItem({r, type, onDelete, onPrint}) {
+  const [open,setOpen] = useState(false);
+  const colorMap = {tarde:"indigo",citacion:"amber",accidente:"red",pase:"teal"};
+  const labelMap = {tarde:"Tardanza",citacion:"Citación",accidente:"Accidente",pase:"Pase"};
+  const color = colorMap[type]; const label = labelMap[type];
+  const skip = new Set(["id","alumno","curso","fecha","hora","type","certBase64","certMime"]);
+  return <div className="border border-gray-100 rounded-xl overflow-hidden bg-gray-50">
+    <div className="flex items-center justify-between px-4 py-2.5 cursor-pointer hover:bg-gray-100 transition" onClick={()=>setOpen(!open)}>
+      <div className="flex items-center gap-2 min-w-0">
+        <Badge color={color}>{label}</Badge>
+        <span className="text-sm font-semibold text-gray-800 truncate">{r.alumno}</span>
+        <span className="text-xs text-gray-400 hidden sm:inline">{r.curso}</span>
+        {r.certBase64 && <span className="text-[9px] bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-full px-1.5 py-0.5 font-bold">📎 Cert.</span>}
+      </div>
+      <div className="flex items-center gap-1.5 ml-2 flex-shrink-0">
+        <span className="text-xs text-gray-400">{fmtFecha(r.fecha)}</span>
+        <button onClick={e=>{e.stopPropagation();onPrint(r);}} className="text-xs bg-white border border-gray-200 rounded-lg px-2 py-0.5 hover:bg-indigo-50 hover:border-indigo-200 text-gray-500 hover:text-indigo-600 transition">📄</button>
+        <button onClick={e=>{e.stopPropagation();onDelete(r.id);}} className="text-gray-300 hover:text-red-400 transition text-xl leading-none">×</button>
+      </div>
+    </div>
+    {open && <div className="px-4 pb-4 pt-2 border-t border-gray-100 bg-white text-sm space-y-1">
+      {Object.entries(r).filter(([k])=>!skip.has(k)).map(([k,v])=>v?<div key={k} className="flex gap-2">
+        <span className="text-gray-400 font-semibold capitalize min-w-[140px] text-xs">{k.replace(/_/g," ")}:</span>
+        <span className="text-gray-700">{String(v)}</span>
+      </div>:null)}
+      {r.certBase64 && <div className="mt-2"><p className="text-xs font-bold text-emerald-700 mb-1">📎 Certificado médico adjunto</p><img src={r.certBase64} className="max-w-full rounded-lg border border-gray-200" style={{maxHeight:200}}/></div>}
+    </div>}
+  </div>;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// MÓDULO ALUMNOS
+// ══════════════════════════════════════════════════════════════════
+function ModAlumnos({alumnos, setAlumnos, syncStatus, onSaveAlumnos}) {
+  const [n,setN]             = useState({apellido:"",nombre:"",curso:""});
+  const [csv,setCsv]         = useState("");
+  const [showCsv,setShowCsv] = useState(false);
+  const [err,setErr]         = useState("");
+
+  const agregar = async () => {
+    if(!n.apellido.trim()||!n.nombre.trim()||!n.curso.trim()){setErr("Completá todos los campos.");return;}
+    const nuevo = [...alumnos,{id:Date.now(),...n}];
+    setAlumnos(nuevo); setN({apellido:"",nombre:"",curso:""}); setErr("");
+    await onSaveAlumnos(nuevo);
+  };
+
+  const importar = async () => {
+    const lines = csv.trim().split("\n").filter(Boolean);
+    const ok=[],fail=[];
+    lines.forEach((l,i)=>{const p=l.split(",").map(x=>x.trim());if(p.length<3||!p[0]||!p[1]||!p[2]){fail.push(i+1);return;}ok.push({id:Date.now()+i,apellido:p[0],nombre:p[1],curso:p[2]});});
+    if(fail.length){setErr(`Líneas con error: ${fail.join(", ")}`);return;}
+    const nuevo = [...alumnos,...ok];
+    setAlumnos(nuevo); setCsv(""); setShowCsv(false); setErr("");
+    await onSaveAlumnos(nuevo);
+  };
+
+  const cursos = [...new Set(alumnos.map(a=>a.curso))].sort();
+  return <div className="space-y-5">
+    <SecHdr icon="👥" title="Lista de Alumnos" sub="Cargá o importá el padrón del establecimiento" color="green"/>
+    <Card>
+      <div className="flex items-center justify-between mb-4"><p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Agregar individualmente</p><SyncBadge status={syncStatus}/></div>
+      <div className="grid grid-cols-3 gap-3">
+        <Inp label="Apellido" placeholder="García" value={n.apellido} onChange={e=>setN({...n,apellido:e.target.value})}/>
+        <Inp label="Nombre"   placeholder="Lucía"  value={n.nombre}   onChange={e=>setN({...n,nombre:e.target.value})}/>
+        <Inp label="Curso"    placeholder="3° A"   value={n.curso}    onChange={e=>setN({...n,curso:e.target.value})}/>
+      </div>
+      {err && <p className="text-xs text-red-500 mt-2">{err}</p>}
+      <button onClick={agregar} className="w-full mt-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl px-4 py-2.5 text-sm transition">+ Agregar alumno/a</button>
+    </Card>
+    <Card>
+      <div className="flex items-center justify-between mb-2">
+        <div><p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Importar lista CSV</p><p className="text-xs text-gray-400 mt-0.5">Formato: <code className="bg-gray-100 rounded px-1">Apellido, Nombre, Curso</code></p></div>
+        <button onClick={()=>setShowCsv(!showCsv)} className="text-xs text-indigo-600 font-bold underline">{showCsv?"Cerrar":"Abrir"}</button>
+      </div>
+      {showCsv && <><textarea className={`${iCls} resize-none mt-2`} rows={7} placeholder={"García, Lucía, 3° A\nLópez, Marcos, 2° B"} value={csv} onChange={e=>setCsv(e.target.value)}/><div className="flex gap-2 mt-2"><button onClick={importar} className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl px-3 py-1.5 text-xs">Importar</button><button onClick={()=>{setCsv("");setShowCsv(false);}} className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl px-3 py-1.5 text-xs">Cancelar</button></div></>}
+    </Card>
+    {alumnos.length>0 && <Card>
+      <div className="flex items-center justify-between mb-3"><p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Padrón cargado</p><div className="flex gap-1"><Badge color="green">{alumnos.length} alumnos</Badge><Badge color="slate">{cursos.length} cursos</Badge></div></div>
+      {cursos.map(c=><div key={c} className="mb-4">
+        <p className="text-xs font-bold text-gray-400 uppercase mb-1.5">{c}</p>
+        <div className="flex flex-wrap gap-1.5">
+          {alumnos.filter(a=>a.curso===c).sort((a,b)=>a.apellido.localeCompare(b.apellido)).map(a=><div key={a.id} className="flex items-center gap-1 bg-gray-100 rounded-lg px-2.5 py-1 text-xs text-gray-700">
+            <span>{a.apellido}, {a.nombre}</span>
+            <button onClick={async()=>{const nuevo=alumnos.filter(x=>x.id!==a.id);setAlumnos(nuevo);await onSaveAlumnos(nuevo);}} className="text-gray-300 hover:text-red-400 ml-1">×</button>
+          </div>)}
+        </div>
+      </div>)}
+      <button onClick={async()=>{if(window.confirm("¿Borrar toda la lista?")){setAlumnos([]);await onSaveAlumnos([]);}}} className="text-xs text-red-400 hover:text-red-600 underline">Limpiar lista completa</button>
+    </Card>}
+  </div>;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// MÓDULO TARDANZAS
+// ══════════════════════════════════════════════════════════════════
+function ModTarde({records, setRecords, alumnos, escuela, syncStatus}) {
+  const [aid,setAid]   = useState(null);
+  const [f,setF]       = useState({fecha:hoyISO(),hora:horaAhora(),motivo:"",notificado:""});
+  const [saving,setSaving] = useState(false);
+  const alumno = alumnos.find(a=>a.id===aid);
+
+  const guardar = async () => {
+    if(!alumno) return alert("Seleccioná un alumno.");
+    setSaving(true);
+    const r = {...f, id:Date.now(), type:"tarde", alumno:`${alumno.apellido}, ${alumno.nombre}`, curso:alumno.curso};
+    setRecords(p=>[r,...p]);
+    await api({action:"saveRecord",data:r});
+    setSaving(false); setAid(null); setF({fecha:hoyISO(),hora:horaAhora(),motivo:"",notificado:""});
+  };
+
+  const borrar = async id => { setRecords(p=>p.filter(x=>x.id!==id)); await api({action:"deleteRecord",type:"tarde",id}); };
+
+  const imprimirFicha = r => printDoc(`
+    <div class="hdr"><h1>${escuela||"Establecimiento Educativo"}</h1><div class="sub">Preceptoría Auxiliar — Registro de Llegada Tarde</div></div>
+    <div class="campo"><label>Alumno/a</label><div class="valor">${r.alumno}</div></div>
+    <div class="campo"><label>Curso</label><div class="valor">${r.curso}</div></div>
+    <div class="campo"><label>Fecha</label><div class="valor">${fechaLarga(r.fecha)}</div></div>
+    <div class="campo"><label>Hora de llegada</label><div class="valor">${r.hora}</div></div>
+    <div class="campo"><label>Motivo</label><div class="valor">${r.motivo||"—"}</div></div>
+    <div class="campo"><label>Preceptor/a notificado/a</label><div class="valor">${r.notificado||"—"}</div></div>
+    <div class="fila-firmas"><div class="firma">Alumno/a</div><div class="firma">Preceptor/a Auxiliar</div><div class="firma">Preceptor/a de Curso</div></div>`,
+  `Tardanza ${r.alumno}`);
+
+  const imprimirInforme = curso => {
+    const lista = tardes.filter(r=>r.curso===curso);
+    printDoc(`<div class="hdr"><h1>${escuela||"Establecimiento Educativo"}</h1><div class="sub">Preceptoría Auxiliar — Informe de Llegadas Tarde · ${curso}</div></div>
+      <table><thead><tr><th>Alumno/a</th><th>Fecha</th><th>Hora</th><th>Motivo</th></tr></thead>
+      <tbody>${lista.map(r=>`<tr><td>${r.alumno}</td><td>${fmtFecha(r.fecha)}</td><td>${r.hora||"—"}</td><td>${r.motivo||"—"}</td></tr>`).join("")}</tbody></table>
+      <div class="fila-firmas"><div class="firma">Preceptor/a Auxiliar</div><div class="firma">Preceptor/a de Curso (${curso})</div></div>`,
+    `Tardanzas ${curso}`);
+  };
+
+  const tardes = records.filter(r=>r.type==="tarde");
+  const cursos = [...new Set(tardes.map(r=>r.curso))].sort();
+
+  return <div className="space-y-5">
+    <SecHdr icon="🕐" title="Llegadas Tarde" sub="Registrá tardanzas y generá informes por curso" color="indigo"/>
+    {alumnos.length===0 && <Aviso/>}
+    <Card>
+      <div className="flex items-center justify-between mb-4"><p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Nuevo registro</p><SyncBadge status={syncStatus}/></div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="col-span-2"><AlumnoSel alumnos={alumnos} value={aid} onChange={setAid}/></div>
+        <Inp label="Fecha" type="date" value={f.fecha} onChange={e=>setF({...f,fecha:e.target.value})}/>
+        <Inp label="Hora de llegada" type="time" value={f.hora} onChange={e=>setF({...f,hora:e.target.value})}/>
+        <div className="col-span-2"><Inp label="Motivo (opcional)" placeholder="Ej: Transporte, salud..." value={f.motivo} onChange={e=>setF({...f,motivo:e.target.value})}/></div>
+        <div className="col-span-2"><Inp label="Preceptor/a de curso notificado/a" value={f.notificado} onChange={e=>setF({...f,notificado:e.target.value})}/></div>
+      </div>
+      <button onClick={guardar} disabled={saving} className={`w-full mt-3 font-bold rounded-xl px-4 py-2.5 text-sm transition ${saving?"bg-gray-200 text-gray-400":"bg-indigo-600 hover:bg-indigo-700 text-white"}`}>{saving?"↻ Guardando...":"Registrar tardanza"}</button>
+    </Card>
+    {cursos.length>0 && <Card>
+      <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Informes por curso</p>
+      <div className="space-y-2">
+        {cursos.map(curso=>{const qty=tardes.filter(r=>r.curso===curso).length;return<div key={curso} className="flex items-center justify-between bg-indigo-50 rounded-xl px-4 py-2.5">
+          <div><span className="font-bold text-indigo-900 text-sm">{curso}</span><span className="text-xs text-indigo-400 ml-2">{qty} tardanza{qty!==1?"s":""}</span></div>
+          <button onClick={()=>imprimirInforme(curso)} className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3 py-1.5 rounded-lg">📄 Informe</button>
+        </div>;})}
+      </div>
+    </Card>}
+    {tardes.length>0 && <div className="space-y-2">
+      <div className="flex items-center justify-between"><p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Historial</p><Badge color="indigo">{tardes.length}</Badge></div>
+      {tardes.map(r=><HistItem key={r.id} r={r} type="tarde" onDelete={borrar} onPrint={imprimirFicha}/>)}
+    </div>}
+  </div>;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// MÓDULO CITACIONES
+// ══════════════════════════════════════════════════════════════════
+function ModCitacion({records, setRecords, alumnos, escuela, syncStatus}) {
+  const [aid,setAid]       = useState(null);
+  const [f,setF]           = useState({fecha:hoyISO(),motivo:"",detalle:"",familiar:"",vinculo:"",medio:"",fecha_cita:"",hora_cita:"",obs:""});
+  const [saving,setSaving] = useState(false);
+  const [driveRes,setDriveRes] = useState(null);
+  const [driveErr,setDriveErr] = useState(null);
+  const alumno = alumnos.find(a=>a.id===aid);
+
+  const guardar = async () => {
+    if(!alumno||!f.motivo) return alert("Seleccioná alumno y motivo.");
+    setSaving(true);
+    const r = {...f, id:Date.now(), type:"citacion", hora:horaAhora(), alumno:`${alumno.apellido}, ${alumno.nombre}`, curso:alumno.curso};
+    setRecords(p=>[r,...p]);
+    await api({action:"saveRecord",data:r});
+    setSaving(false); setAid(null); setF({fecha:hoyISO(),motivo:"",detalle:"",familiar:"",vinculo:"",medio:"",fecha_cita:"",hora_cita:"",obs:""});
+  };
+
+  const borrar = async id => { setRecords(p=>p.filter(x=>x.id!==id)); await api({action:"deleteRecord",type:"citacion",id}); };
+
+  // Generar PDF con nombre del alumno en Drive
+  const generarPDFDrive = async r => {
+    setDriveRes(null); setDriveErr(null);
+    try {
+      const res = await api({action:"saveCitacionPDF", escuela, data:{...r, fechaLarga:fechaLarga(r.fecha), fechaCitaLarga:r.fecha_cita?fechaLarga(r.fecha_cita):""}});
+      if(res.ok){ setDriveRes(res); if(res.base64) descargarPDF(res.base64, res.name); }
+      else setDriveErr(res.error);
+    } catch(err){ setDriveErr(err.toString()); }
+  };
+
+  // Imprimir local
+  const imprimir = r => printDoc(`
+    <div class="hdr"><h1>${escuela||"Establecimiento Educativo"}</h1><div class="sub">Preceptoría Auxiliar — Formulario de Citación a Familia</div></div>
+    <div class="campo"><label>Alumno/a</label><div class="valor">${r.alumno}</div></div>
+    <div class="campo"><label>Curso</label><div class="valor">${r.curso}</div></div>
+    <div class="campo"><label>Fecha</label><div class="valor">${fechaLarga(r.fecha)}</div></div>
+    <div class="campo"><label>Motivo</label><div class="valor">${r.motivo}</div></div>
+    <div class="campo"><label>Descripción</label><div class="valor" style="min-height:60px">${r.detalle||"&nbsp;"}</div></div>
+    <div class="campo"><label>Familiar citado</label><div class="valor">${r.familiar||"&nbsp;"}</div></div>
+    <div class="campo"><label>Vínculo</label><div class="valor">${r.vinculo||"&nbsp;"}</div></div>
+    <div class="campo"><label>Medio de contacto</label><div class="valor">${r.medio||"&nbsp;"}</div></div>
+    <div class="campo"><label>Fecha cita</label><div class="valor">${r.fecha_cita?fechaLarga(r.fecha_cita):"&nbsp;"}</div></div>
+    <div class="campo"><label>Hora</label><div class="valor">${r.hora_cita||"&nbsp;"}</div></div>
+    <div class="campo"><label>Observaciones</label><div class="valor" style="min-height:40px">${r.obs||"&nbsp;"}</div></div>
+    <div class="fila-firmas"><div class="firma">Familiar/Tutor<br><small>Aclaración:____________</small></div><div class="firma">Preceptor/a Auxiliar</div><div class="firma">Dirección</div></div>`,
+  `Citación — ${r.alumno}`);
+
+  const citas = records.filter(r=>r.type==="citacion");
+  return <div className="space-y-5">
+    <SecHdr icon="📋" title="Citación a Familias" sub="Formularios oficiales — el PDF se nombra con el alumno/a" color="amber"/>
+    {alumnos.length===0 && <Aviso/>}
+    <Card>
+      <div className="flex items-center justify-between mb-4"><p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Nueva citación</p><SyncBadge status={syncStatus}/></div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="col-span-2"><AlumnoSel alumnos={alumnos} value={aid} onChange={setAid}/></div>
+        <Inp label="Fecha" type="date" value={f.fecha} onChange={e=>setF({...f,fecha:e.target.value})}/>
+        <Sel label="Motivo" opts={MOTIVOS_CIT} value={f.motivo} onChange={e=>setF({...f,motivo:e.target.value})}/>
+        <div className="col-span-2"><Txa label="Descripción de la situación" placeholder="Describí concretamente..." value={f.detalle} onChange={e=>setF({...f,detalle:e.target.value})}/></div>
+        <Inp label="Familiar a citar" placeholder="Ej: Sra. García" value={f.familiar} onChange={e=>setF({...f,familiar:e.target.value})}/>
+        <Sel label="Vínculo" opts={VINCULOS} value={f.vinculo} onChange={e=>setF({...f,vinculo:e.target.value})}/>
+        <Sel label="Medio de contacto" opts={MEDIOS} value={f.medio} onChange={e=>setF({...f,medio:e.target.value})}/>
+        <div></div>
+        <Inp label="Fecha de cita" type="date" value={f.fecha_cita} onChange={e=>setF({...f,fecha_cita:e.target.value})}/>
+        <Inp label="Hora" type="time" value={f.hora_cita} onChange={e=>setF({...f,hora_cita:e.target.value})}/>
+        <div className="col-span-2"><Txa label="Observaciones" value={f.obs} onChange={e=>setF({...f,obs:e.target.value})}/></div>
+      </div>
+      <button onClick={guardar} disabled={saving} className={`w-full mt-3 font-bold rounded-xl px-4 py-2.5 text-sm transition ${saving?"bg-gray-200 text-gray-400":"bg-amber-500 hover:bg-amber-600 text-white"}`}>{saving?"↻ Guardando...":"Registrar citación"}</button>
+    </Card>
+    {driveRes && <DriveResult res={driveRes}/>}
+    {driveErr && <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 text-xs text-red-700">⚠️ {driveErr}</div>}
+    {citas.length>0 && <div className="space-y-2">
+      <div className="flex items-center justify-between"><p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Historial</p><Badge color="amber">{citas.length}</Badge></div>
+      {citas.map(r=><div key={r.id}>
+        <HistItem r={r} type="citacion" onDelete={borrar} onPrint={()=>{imprimir(r);generarPDFDrive(r);}}/>
+      </div>)}
+    </div>}
+  </div>;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// MÓDULO ACCIDENTES
+// ══════════════════════════════════════════════════════════════════
+function ModAccidente({records, setRecords, alumnos, escuela, syncStatus}) {
+  const [aid,setAid]     = useState(null);
+  const [f,setF]         = useState({fecha:hoyISO(),hora:horaAhora(),tipo:"",como:"",lugar:"",profesor:"",lesion:"",atencion:"",directivo:"",traslado:"No",obs:""});
+  const [cert,setCert]   = useState(null);  // {base64, mime, preview}
+  const [saving,setSaving]   = useState(false);
+  const [driveRes,setDriveRes] = useState(null);
+  const [driveErr,setDriveErr] = useState(null);
+  const fileRef = useRef();
+  const alumno  = alumnos.find(a=>a.id===aid);
+
+  const onCertFile = e => {
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => setCert({base64:ev.target.result, mime:file.type, preview:ev.target.result, nombre:file.name});
+    reader.readAsDataURL(file);
+    e.target.value="";
+  };
+
+  const guardar = async () => {
+    if(!alumno||!f.tipo) return alert("Seleccioná alumno y tipo de accidente.");
+    setSaving(true); setDriveRes(null); setDriveErr(null);
+    const r = {
+      ...f, id:Date.now(), type:"accidente",
+      alumno:`${alumno.apellido}, ${alumno.nombre}`, curso:alumno.curso,
+      tieneCertificado:!!cert,
+      certBase64: cert?.base64 || null,
+      certMime:   cert?.mime   || null,
+      fechaLarga: fechaLarga(f.fecha)
+    };
+    setRecords(p=>[r,...p]);
+    // Guardar en sheets (sin la imagen para no sobrecargar)
+    await api({action:"saveRecord", data:{...r, certBase64:null, certMime:null}});
+    // Generar acta PDF en Drive (con imagen)
+    try {
+      const res = await api({action:"saveAccidentePDF", escuela, data:r});
+      if(res.ok){ setDriveRes(res); if(res.base64) descargarPDF(res.base64, res.name); }
+      else setDriveErr(res.error);
+    } catch(err){ setDriveErr(err.toString()); }
+    setSaving(false); setAid(null); setCert(null);
+    setF({fecha:hoyISO(),hora:horaAhora(),tipo:"",como:"",lugar:"",profesor:"",lesion:"",atencion:"",directivo:"",traslado:"No",obs:""});
+  };
+
+  const borrar = async id => { setRecords(p=>p.filter(x=>x.id!==id)); await api({action:"deleteRecord",type:"accidente",id}); };
+
+  const imprimir = r => printDoc(`
+    <div class="hdr"><h1>${escuela||"Establecimiento Educativo"}</h1><div class="sub">Preceptoría Auxiliar — Acta de Accidente Escolar</div></div>
+    <p style="text-align:center;font-size:10pt;margin-bottom:16px;color:#dc2626;font-weight:700">N.° ACC-${String(r.id).slice(-6)} · ${fechaLarga(r.fecha)} · ${r.hora||""}</p>
+    <div class="campo"><label>Alumno/a</label><div class="valor">${r.alumno}</div></div>
+    <div class="campo"><label>Curso</label><div class="valor">${r.curso}</div></div>
+    <div class="campo"><label>Tipo de accidente</label><div class="valor">${r.tipo}</div></div>
+    <div class="campo"><label>Lugar</label><div class="valor">${r.lugar||"&nbsp;"}</div></div>
+    <div class="campo"><label>Docente a cargo</label><div class="valor">${r.profesor||"&nbsp;"}</div></div>
+    <div class="campo"><label>Cómo ocurrió</label><div class="valor" style="min-height:60px">${r.como||"&nbsp;"}</div></div>
+    <div class="campo"><label>Lesión</label><div class="valor" style="min-height:50px">${r.lesion||"&nbsp;"}</div></div>
+    <div class="campo"><label>Atención brindada</label><div class="valor" style="min-height:50px">${r.atencion||"&nbsp;"}</div></div>
+    <div class="campo"><label>Traslado</label><div class="valor">${r.traslado}</div></div>
+    <div class="campo"><label>Directivo notificado</label><div class="valor">${r.directivo||"&nbsp;"}</div></div>
+    <div class="campo"><label>Observaciones</label><div class="valor" style="min-height:40px">${r.obs||"&nbsp;"}</div></div>
+    ${r.certBase64?`<h2 style="border-bottom:1px solid #999;margin:18px 0 8px;color:#065f46">Certificado médico adjunto</h2><img src="${r.certBase64}" class="cert-img"/>`:""}
+    <div class="fila-firmas"><div class="firma">Alumno/a o familiar<br><small>Aclaración:___________</small></div><div class="firma">Docente a cargo</div><div class="firma">Preceptor/a Auxiliar</div><div class="firma">Dirección</div></div>`,
+  `Acta Accidente — ${r.alumno}`);
+
+  const acc = records.filter(r=>r.type==="accidente");
+  return <div className="space-y-5">
+    <SecHdr icon="🚨" title="Accidentes Escolares" sub="El acta se genera en Drive con el certificado médico incluido" color="red"/>
+    {alumnos.length===0 && <Aviso/>}
+    <Card>
+      <div className="flex items-center justify-between mb-4"><p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Nuevo accidente</p><SyncBadge status={syncStatus}/></div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="col-span-2"><AlumnoSel alumnos={alumnos} value={aid} onChange={setAid}/></div>
+        <Inp label="Fecha" type="date" value={f.fecha} onChange={e=>setF({...f,fecha:e.target.value})}/>
+        <Inp label="Hora" type="time" value={f.hora} onChange={e=>setF({...f,hora:e.target.value})}/>
+        <Sel label="Tipo de accidente" opts={TIPOS_ACC} value={f.tipo} onChange={e=>setF({...f,tipo:e.target.value})}/>
+        <Inp label="Lugar" placeholder="Patio, aula, escalera..." value={f.lugar} onChange={e=>setF({...f,lugar:e.target.value})}/>
+        <div className="col-span-2"><Txa label="¿Cómo ocurrió?" placeholder="Descripción detallada..." value={f.como} onChange={e=>setF({...f,como:e.target.value})}/></div>
+        <Inp label="Docente a cargo" value={f.profesor} onChange={e=>setF({...f,profesor:e.target.value})}/>
+        <Inp label="Directivo notificado" value={f.directivo} onChange={e=>setF({...f,directivo:e.target.value})}/>
+        <div className="col-span-2"><Txa label="Descripción de la lesión" rows={2} value={f.lesion} onChange={e=>setF({...f,lesion:e.target.value})}/></div>
+        <div className="col-span-2"><Txa label="Atención brindada" rows={2} value={f.atencion} onChange={e=>setF({...f,atencion:e.target.value})}/></div>
+        <Sel label="¿Requirió traslado?" opts={TRASLADOS} value={f.traslado} onChange={e=>setF({...f,traslado:e.target.value})}/>
+        <Txa label="Observaciones" rows={2} value={f.obs} onChange={e=>setF({...f,obs:e.target.value})}/>
+      </div>
+
+      {/* FOTO CERTIFICADO MÉDICO */}
+      <div className="mt-4 border-t border-gray-100 pt-4">
+        <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">📎 Certificado médico (opcional)</p>
+        {cert ? <div className="space-y-2">
+          <div className="relative">
+            <img src={cert.preview} className="w-full max-h-48 object-contain rounded-xl border border-gray-200 bg-gray-50"/>
+            <button onClick={()=>setCert(null)} className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 text-xs font-bold hover:bg-red-600 flex items-center justify-center">×</button>
+          </div>
+          <p className="text-xs text-gray-400">📄 {cert.nombre}</p>
+          <p className="text-xs text-emerald-600 font-bold">✓ Se incluirá en el acta PDF de Drive</p>
+        </div> : <div className="flex gap-2">
+          <button onClick={()=>fileRef.current.click()} className="flex-1 border-2 border-dashed border-gray-200 hover:border-indigo-300 rounded-xl py-4 text-xs text-gray-400 hover:text-indigo-500 font-bold transition text-center">📷 Sacar foto / Subir imagen</button>
+          <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onCertFile}/>
+        </div>}
+      </div>
+
+      <button onClick={guardar} disabled={saving} className={`w-full mt-4 font-bold rounded-xl px-4 py-2.5 text-sm transition ${saving?"bg-gray-200 text-gray-400":"bg-red-600 hover:bg-red-700 text-white"}`}>
+        {saving ? "↻ Guardando y generando acta..." : "Registrar accidente y generar acta en Drive"}
+      </button>
+    </Card>
+    {driveRes && <DriveResult res={driveRes}/>}
+    {driveErr && <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 text-xs text-red-700">⚠️ {driveErr}</div>}
+    {acc.length>0 && <div className="space-y-2">
+      <div className="flex items-center justify-between"><p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Historial</p><Badge color="red">{acc.length}</Badge></div>
+      {acc.map(r=><HistItem key={r.id} r={r} type="accidente" onDelete={borrar} onPrint={imprimir}/>)}
+    </div>}
+  </div>;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// MÓDULO PASES Y DOCUMENTACIÓN
+// ══════════════════════════════════════════════════════════════════
+function ModPases({records, setRecords, alumnos, escuela, syncStatus}) {
+  const [aid,setAid]   = useState(null);
+  const [f,setF]       = useState({fecha:hoyISO(),hora:horaAhora(),tipoDoc:"",motivo:"",adulto:"",vinculo:"",contacto:"",obs:""});
+  const [saving,setSaving]     = useState(false);
+  const [driveRes,setDriveRes] = useState(null);
+  const [driveErr,setDriveErr] = useState(null);
+  const [obsInf,setObsInf]     = useState("");
+  const alumno = alumnos.find(a=>a.id===aid);
+
+  const guardar = async () => {
+    if(!alumno||!f.tipoDoc) return alert("Seleccioná alumno y tipo de documento.");
+    setSaving(true);
+    const r = {...f, id:Date.now(), type:"pase", alumno:`${alumno.apellido}, ${alumno.nombre}`, curso:alumno.curso};
+    setRecords(p=>[r,...p]);
+    await api({action:"saveRecord",data:r});
+    setSaving(false); setAid(null); setF({fecha:hoyISO(),hora:horaAhora(),tipoDoc:"",motivo:"",adulto:"",vinculo:"",contacto:"",obs:""});
+  };
+
+  const borrar = async id => { setRecords(p=>p.filter(x=>x.id!==id)); await api({action:"deleteRecord",type:"pase",id}); };
+
+  // Informe para secretaría
+  const generarInforme = async (pasesFiltrados) => {
+    setDriveRes(null); setDriveErr(null);
+    try {
+      const res = await api({action:"saveInformePases", escuela, data:{
+        fecha: fmtFecha(hoyISO()), fechaLarga:fechaLarga(hoyISO()),
+        pases: pasesFiltrados, obs: obsInf
+      }});
+      if(res.ok){ setDriveRes(res); if(res.base64) descargarPDF(res.base64, res.name); }
+      else setDriveErr(res.error);
+    } catch(err){ setDriveErr(err.toString()); }
+  };
+
+  const imprimirRecibo = r => printDoc(`
+    <div class="hdr"><h1>${escuela||"Establecimiento Educativo"}</h1><div class="sub">Preceptoría Auxiliar — Recepción de Documentación</div></div>
+    <div class="campo"><label>Fecha y hora</label><div class="valor">${fechaLarga(r.fecha)} — ${r.hora||"—"}</div></div>
+    <div class="campo"><label>Alumno/a</label><div class="valor">${r.alumno}</div></div>
+    <div class="campo"><label>Curso</label><div class="valor">${r.curso}</div></div>
+    <div class="campo"><label>Tipo de documento</label><div class="valor">${r.tipoDoc}</div></div>
+    <div class="campo"><label>Motivo</label><div class="valor">${r.motivo||"—"}</div></div>
+    <div class="campo"><label>Adulto responsable</label><div class="valor">${r.adulto||"&nbsp;"}</div></div>
+    <div class="campo"><label>Vínculo</label><div class="valor">${r.vinculo||"&nbsp;"}</div></div>
+    <div class="campo"><label>Contacto</label><div class="valor">${r.contacto||"&nbsp;"}</div></div>
+    <div class="campo"><label>Observaciones</label><div class="valor" style="min-height:40px">${r.obs||"&nbsp;"}</div></div>
+    <div class="fila-firmas"><div class="firma">Firma adulto responsable<br><small>Aclaración:___________</small></div><div class="firma">Preceptor/a Auxiliar</div></div>`,
+  `Pase — ${r.alumno}`);
+
+  const pases = records.filter(r=>r.type==="pase");
+  const paseHoy = pases.filter(r=>r.fecha===hoyISO());
+
+  return <div className="space-y-5">
+    <SecHdr icon="📁" title="Pases y Documentación" sub="Registrá documentación recibida y generá informe para secretaría" color="teal"/>
+    {alumnos.length===0 && <Aviso/>}
+    <Card>
+      <div className="flex items-center justify-between mb-4"><p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Recepcionar documento</p><SyncBadge status={syncStatus}/></div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="col-span-2"><AlumnoSel alumnos={alumnos} value={aid} onChange={setAid}/></div>
+        <Inp label="Fecha" type="date" value={f.fecha} onChange={e=>setF({...f,fecha:e.target.value})}/>
+        <Inp label="Hora" type="time" value={f.hora} onChange={e=>setF({...f,hora:e.target.value})}/>
+        <div className="col-span-2"><Sel label="Tipo de documento" opts={TIPOS_PASE} value={f.tipoDoc} onChange={e=>setF({...f,tipoDoc:e.target.value})}/></div>
+        <div className="col-span-2"><Inp label="Motivo del pase / documento" placeholder="Ej: Consulta médica, retiro por viaje..." value={f.motivo} onChange={e=>setF({...f,motivo:e.target.value})}/></div>
+        <Inp label="Adulto responsable" placeholder="Nombre completo" value={f.adulto} onChange={e=>setF({...f,adulto:e.target.value})}/>
+        <Sel label="Vínculo" opts={VINCULOS} value={f.vinculo} onChange={e=>setF({...f,vinculo:e.target.value})}/>
+        <div className="col-span-2"><Inp label="Teléfono / contacto del adulto" placeholder="Ej: 11-1234-5678" value={f.contacto} onChange={e=>setF({...f,contacto:e.target.value})}/></div>
+        <div className="col-span-2"><Txa label="Observaciones" rows={2} value={f.obs} onChange={e=>setF({...f,obs:e.target.value})}/></div>
+      </div>
+      <button onClick={guardar} disabled={saving} className={`w-full mt-3 font-bold rounded-xl px-4 py-2.5 text-sm transition ${saving?"bg-gray-200 text-gray-400":"bg-teal-600 hover:bg-teal-700 text-white"}`}>{saving?"↻ Guardando...":"Registrar y guardar en Drive"}</button>
+    </Card>
+
+    {/* INFORME PARA SECRETARÍA */}
+    {pases.length>0 && <Card>
+      <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">📋 Informe para Secretaría</p>
+      <p className="text-xs text-gray-400 mb-3">Genera un informe PDF de todos los pases registrados hoy ({paseHoy.length}) para entregar a secretaría.</p>
+      <Txa label="Observaciones generales (opcional)" rows={2} value={obsInf} onChange={e=>setObsInf(e.target.value)}/>
+      <div className="flex gap-2 mt-3">
+        <button onClick={()=>generarInforme(paseHoy)} disabled={paseHoy.length===0} className={`flex-1 font-bold rounded-xl px-3 py-2.5 text-xs transition ${paseHoy.length>0?"bg-teal-600 hover:bg-teal-700 text-white":"bg-gray-100 text-gray-400 cursor-not-allowed"}`}>
+          📁 Informe de hoy ({paseHoy.length})
+        </button>
+        <button onClick={()=>generarInforme(pases)} className="flex-1 font-bold rounded-xl px-3 py-2.5 text-xs bg-slate-600 hover:bg-slate-700 text-white transition">
+          📁 Todos ({pases.length})
+        </button>
+      </div>
+    </Card>}
+
+    {driveRes && <DriveResult res={driveRes}/>}
+    {driveErr && <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 text-xs text-red-700">⚠️ {driveErr}</div>}
+
+    {pases.length>0 && <div className="space-y-2">
+      <div className="flex items-center justify-between"><p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Historial</p><Badge color="teal">{pases.length}</Badge></div>
+      {pases.map(r=><HistItem key={r.id} r={r} type="pase" onDelete={borrar} onPrint={imprimirRecibo}/>)}
+    </div>}
+  </div>;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// MÓDULO INFORME DIARIO
+// ══════════════════════════════════════════════════════════════════
+function ModInforme({records, escuela}) {
+  const [fecha,setFecha]       = useState(hoyISO());
+  const [guardando,setGuardando] = useState(false);
+  const [driveRes,setDriveRes] = useState(null);
+  const [driveErr,setDriveErr] = useState(null);
+
+  const del_dia = records.filter(r=>r.fecha===fecha).sort((a,b)=>(a.hora||"00:00").localeCompare(b.hora||"00:00"));
+  const tardes  = del_dia.filter(r=>r.type==="tarde");
+  const citas   = del_dia.filter(r=>r.type==="citacion");
+  const accs    = del_dia.filter(r=>r.type==="accidente");
+  const pases   = del_dia.filter(r=>r.type==="pase");
+
+  const buildTimeline = () => {
+    const items=[];
+    if(tardes.length>0){
+      const hMin = tardes.reduce((m,r)=>(!m||r.hora<m)?r.hora:m,null);
+      items.push({hora:hMin||"--:--",type:"tarde",titulo:`${tardes.length} llegada${tardes.length>1?"s":""} tarde`,detalle:tardes.map(r=>`${r.alumno} (${r.curso})${r.hora?" a las "+r.hora:""}`).join("; ")});
+    }
+    citas.forEach(r=>items.push({hora:r.hora||"--:--",type:"citacion",titulo:`Citación — ${r.alumno} (${r.curso})`,detalle:`Motivo: ${r.motivo}${r.familiar?` · Familiar: ${r.familiar}`:""}${r.fecha_cita?` · Cita: ${fmtFecha(r.fecha_cita)} ${r.hora_cita||""}`:""}`}));
+    accs.forEach(r=>items.push({hora:r.hora||"--:--",type:"accidente",titulo:`Accidente — ${r.alumno} (${r.curso})`,detalle:`${r.tipo}${r.lugar?" en "+r.lugar:""}${r.profesor?" · Docente: "+r.profesor:""}${r.traslado&&r.traslado!=="No"?" · Traslado: "+r.traslado:""}`}));
+    pases.forEach(r=>items.push({hora:r.hora||"--:--",type:"pase",titulo:`${r.tipoDoc||"Pase"} — ${r.alumno} (${r.curso})`,detalle:`Motivo: ${r.motivo||"—"}${r.adulto?" · Adulto: "+r.adulto:""}`}));
+    return items.sort((a,b)=>a.hora.localeCompare(b.hora));
+  };
+  const timeline = buildTimeline();
+
+  const guardarEnDrive = async () => {
+    if(del_dia.length===0) return;
+    setGuardando(true); setDriveRes(null); setDriveErr(null);
+    try {
+      const res = await api({action:"saveInformePDF", escuela, data:{
+        fecha:fmtFecha(fecha), fechaLarga:fechaLarga(fecha),
+        tardes, citas, accs, pases, timeline
+      }});
+      if(res.ok){ setDriveRes(res); if(res.base64) descargarPDF(res.base64, res.name); }
+      else setDriveErr(res.error||"Error desconocido");
+    } catch(err){ setDriveErr(err.toString()); }
+    setGuardando(false);
+  };
+
+  const imprimirInforme = () => {
+    if(del_dia.length===0) return alert("No hay registros para este día.");
+    const TIPO_COLOR = {tarde:"#4f46e5",citacion:"#b45309",accidente:"#dc2626",pase:"#0f766e"};
+    const TIPO_LABEL = {tarde:"TARDANZA",citacion:"CITACIÓN",accidente:"ACCIDENTE",pase:"PASE/DOC"};
+    const tlHtml = timeline.map(item=>`
+      <div style="display:flex;gap:14px;margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid #eee">
+        <div style="font-weight:700;min-width:50px;color:#333">${item.hora}</div>
+        <div style="flex:1">
+          <div style="font-size:9pt;font-weight:700;color:${TIPO_COLOR[item.type]||"#333"};text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px">${TIPO_LABEL[item.type]||item.type}</div>
+          <div style="font-size:11pt;font-weight:700">${item.titulo.replace(/.*?— /,"")}</div>
+          <div style="font-size:10pt;color:#666;margin-top:2px">${item.detalle}</div>
+        </div>
+      </div>`).join("");
+    printDoc(`
+      <div class="hdr"><h1>${escuela||"Establecimiento Educativo"}</h1><div class="sub">Preceptoría Auxiliar — Informe Diario · ${fechaLarga(fecha)}</div></div>
+      <div style="background:#f0f4ff;border:1px solid #c7d2fe;border-radius:6px;padding:12px;margin-bottom:18px;text-align:center">
+        <span style="display:inline-block;margin-right:20px"><b style="font-size:15pt;color:#4f46e5;display:block">${tardes.length}</b>Tardanzas</span>
+        <span style="display:inline-block;margin-right:20px"><b style="font-size:15pt;color:#b45309;display:block">${citas.length}</b>Citaciones</span>
+        <span style="display:inline-block;margin-right:20px"><b style="font-size:15pt;color:#dc2626;display:block">${accs.length}</b>Accidentes</span>
+        <span style="display:inline-block;margin-right:20px"><b style="font-size:15pt;color:#0f766e;display:block">${pases.length}</b>Pases</span>
+        <span style="display:inline-block"><b style="font-size:15pt;display:block">${del_dia.length}</b>Total</span>
+      </div>
+      <h2>Cronología del día</h2>${tlHtml}
+      ${tardes.length>0?`<h2>Tardanzas</h2><table><thead><tr><th>Alumno/a</th><th>Curso</th><th>Hora</th><th>Motivo</th><th>Preceptor notif.</th></tr></thead><tbody>${tardes.map(r=>`<tr><td>${r.alumno}</td><td>${r.curso}</td><td>${r.hora||"—"}</td><td>${r.motivo||"—"}</td><td>${r.notificado||"—"}</td></tr>`).join("")}</tbody></table>`:""}
+      ${citas.length>0?`<h2>Citaciones</h2><table><thead><tr><th>Alumno/a</th><th>Curso</th><th>Motivo</th><th>Familiar</th><th>Cita</th></tr></thead><tbody>${citas.map(r=>`<tr><td>${r.alumno}</td><td>${r.curso}</td><td>${r.motivo}</td><td>${r.familiar||"—"}</td><td>${r.fecha_cita?fmtFecha(r.fecha_cita)+" "+r.hora_cita:"—"}</td></tr>`).join("")}</tbody></table>`:""}
+      ${accs.length>0?`<h2>Accidentes</h2><table><thead><tr><th>Alumno/a</th><th>Curso</th><th>Hora</th><th>Tipo</th><th>Docente</th><th>Traslado</th></tr></thead><tbody>${accs.map(r=>`<tr><td>${r.alumno}</td><td>${r.curso}</td><td>${r.hora||"—"}</td><td>${r.tipo}</td><td>${r.profesor||"—"}</td><td>${r.traslado}</td></tr>`).join("")}</tbody></table>`:""}
+      ${pases.length>0?`<h2>Pases y Documentación</h2><table><thead><tr><th>Alumno/a</th><th>Curso</th><th>Hora</th><th>Tipo</th><th>Motivo</th><th>Adulto</th></tr></thead><tbody>${pases.map(r=>`<tr><td>${r.alumno}</td><td>${r.curso}</td><td>${r.hora||"—"}</td><td>${r.tipoDoc||"—"}</td><td>${r.motivo||"—"}</td><td>${r.adulto||"—"}</td></tr>`).join("")}</tbody></table>`:""}
+      <div class="fila-firmas"><div class="firma">Preceptor/a Auxiliar</div><div class="firma">Sello y firma Dirección</div></div>`,
+    `Informe Diario ${fmtFecha(fecha)}`);
+  };
+
+  const colorMap={indigo:"bg-indigo-50 border-indigo-100 text-indigo-700",amber:"bg-amber-50 border-amber-100 text-amber-700",red:"bg-red-50 border-red-100 text-red-700",teal:"bg-teal-50 border-teal-100 text-teal-700",slate:"bg-slate-50 border-slate-100 text-slate-700"};
+  const tlBdr={tarde:"border-indigo-300 bg-indigo-50",citacion:"border-amber-300 bg-amber-50",accidente:"border-red-300 bg-red-50",pase:"border-teal-300 bg-teal-50"};
+  const tlBadge={tarde:"indigo",citacion:"amber",accidente:"red",pase:"teal"};
+  const tlLabel={tarde:"Tardanza",citacion:"Citación",accidente:"Accidente",pase:"Pase"};
+  const tlIcon={tarde:"🕐",citacion:"📋",accidente:"🚨",pase:"📁"};
+  const tlTtl={tarde:"text-indigo-700",citacion:"text-amber-700",accidente:"text-red-700",pase:"text-teal-700"};
+
+  return <div className="space-y-5">
+    <SecHdr icon="📅" title="Informe Diario" sub="Cronología completa: tardanzas, citaciones, accidentes y pases" color="teal"/>
+    <Card>
+      <div className="flex items-end gap-2 flex-wrap">
+        <div className="flex-1 min-w-[140px]"><Inp label="Fecha" type="date" value={fecha} onChange={e=>{setFecha(e.target.value);setDriveRes(null);setDriveErr(null);}}/></div>
+        <button onClick={imprimirInforme} disabled={del_dia.length===0} className={`px-3 py-2.5 text-xs font-bold rounded-xl transition ${del_dia.length>0?"bg-teal-600 hover:bg-teal-700 text-white":"bg-gray-100 text-gray-400 cursor-not-allowed"}`}>🖨️ Imprimir</button>
+        <button onClick={guardarEnDrive} disabled={del_dia.length===0||guardando} className={`px-3 py-2.5 text-xs font-bold rounded-xl transition ${del_dia.length>0&&!guardando?"bg-emerald-600 hover:bg-emerald-700 text-white":"bg-gray-100 text-gray-400 cursor-not-allowed"}`}>
+          {guardando?<span className="spin inline-block mr-1">↻</span>:"📁 "}{guardando?"Guardando...":"Guardar en Drive"}
+        </button>
+      </div>
+      {driveRes && <DriveResult res={driveRes}/>}
+      {driveErr && <div className="mt-3 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 text-xs text-red-700">⚠️ {driveErr}</div>}
+    </Card>
+
+    {del_dia.length===0 ? <div className="text-center py-10 text-gray-400"><div className="text-5xl mb-3">📭</div><p className="text-sm">No hay registros para el {fmtFecha(fecha)}.</p></div> : <>
+      <div className="grid grid-cols-5 gap-2">
+        {[{icon:"🕐",l:"Tardanzas",v:tardes.length,c:"indigo"},{icon:"📋",l:"Citaciones",v:citas.length,c:"amber"},{icon:"🚨",l:"Accidentes",v:accs.length,c:"red"},{icon:"📁",l:"Pases",v:pases.length,c:"teal"},{icon:"📊",l:"Total",v:del_dia.length,c:"slate"}].map(({icon,l,v,c})=>
+          <div key={l} className={`rounded-2xl border p-2 ${colorMap[c]} text-center`}>
+            <div className="text-lg">{icon}</div>
+            <div className="text-xl font-black">{v}</div>
+            <div className="text-[8px] mt-0.5 opacity-70">{l}</div>
+          </div>
+        )}
+      </div>
+      <Card>
+        <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Cronología</p>
+        {timeline.map((item,i)=><div key={i} className="flex gap-3 pb-4 relative">
+          <div className="flex flex-col items-center">
+            <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-xs flex-shrink-0 ${tlBdr[item.type]}`}>{tlIcon[item.type]}</div>
+            {i<timeline.length-1 && <div className="w-0.5 bg-gray-200 flex-1 mt-1"/>}
+          </div>
+          <div className="flex-1 pb-1">
+            <div className="flex items-center gap-2 mb-0.5">
+              <span className="text-xs font-black text-gray-500">{item.hora}</span>
+              <Badge color={tlBadge[item.type]}>{tlLabel[item.type]}</Badge>
+            </div>
+            <p className={`text-sm font-bold ${tlTtl[item.type]}`}>{item.titulo}</p>
+            <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{item.detalle}</p>
+          </div>
+        </div>)}
+      </Card>
+    </>}
+  </div>;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// DASHBOARD
+// ══════════════════════════════════════════════════════════════════
+function Dashboard({records, alumnos, setTab, escuela, setEscuela, syncStatus, loading}) {
+  const tardes = records.filter(r=>r.type==="tarde").length;
+  const citas  = records.filter(r=>r.type==="citacion").length;
+  const acc    = records.filter(r=>r.type==="accidente").length;
+  const pases  = records.filter(r=>r.type==="pase").length;
+  const hoy    = records.filter(r=>r.fecha===hoyISO()).length;
+  const [editEsc,setEditEsc] = useState(false);
+  const [tmpEsc,setTmpEsc]   = useState(escuela);
+
+  return <div className="space-y-5">
+    <div className="bg-gradient-to-br from-slate-800 via-slate-900 to-indigo-950 rounded-2xl p-6 text-white shadow-2xl">
+      {editEsc ? <div className="space-y-2">
+        <input className="w-full bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-sm text-white placeholder-white/40 focus:outline-none" value={tmpEsc} onChange={e=>setTmpEsc(e.target.value)} placeholder="Nombre del establecimiento..."/>
+        <div className="flex gap-2">
+          <button onClick={()=>{setEscuela(tmpEsc);setEditEsc(false);}} className="bg-white text-slate-900 text-xs font-bold px-3 py-1.5 rounded-lg">Guardar</button>
+          <button onClick={()=>setEditEsc(false)} className="bg-white/10 text-white text-xs px-3 py-1.5 rounded-lg">Cancelar</button>
+        </div>
+      </div> : <>
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="text-3xl mb-1">🏫</div>
+            <h1 className="text-xl font-black tracking-tight">{escuela||"Sistema de Preceptoría"}</h1>
+            <p className="text-slate-400 text-xs mt-0.5">Preceptor/a Auxiliar</p>
+          </div>
+          <div className="flex flex-col items-end gap-2">
+            <button onClick={()=>{setTmpEsc(escuela);setEditEsc(true);}} className="text-xs bg-white/10 hover:bg-white/20 px-2 py-1 rounded-lg text-white/60">✏️ Editar</button>
+            <SyncBadge status={syncStatus}/>
+          </div>
+        </div>
+        <div className="mt-3 bg-white/10 rounded-xl px-3 py-2 text-xs text-white/60">📅 {new Date().toLocaleDateString("es-AR",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}</div>
+      </>}
+    </div>
+
+    {loading && <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-sm text-blue-700 flex items-center gap-2"><span className="spin inline-block text-lg">↻</span> Cargando datos desde Google Drive...</div>}
+    {!loading && alumnos.length===0 && <div className="bg-indigo-50 border border-indigo-200 rounded-2xl px-4 py-4">
+      <p className="font-bold text-indigo-800 text-sm mb-1">👋 ¡Bienvenido/a!</p>
+      <p className="text-xs text-indigo-600 mb-3">Primero cargá la lista de alumnos para empezar a registrar.</p>
+      <button onClick={()=>setTab("alumnos")} className="bg-indigo-600 text-white text-xs font-bold px-4 py-2 rounded-lg">Ir a cargar alumnos →</button>
+    </div>}
+
+    <div className="grid grid-cols-2 gap-3">
+      {[
+        {icon:"👥",label:"Alumnos cargados",v:alumnos.length,c:"green",t:"alumnos"},
+        {icon:"📌",label:"Registros hoy",   v:hoy,           c:"slate", t:"informe"},
+        {icon:"🕐",label:"Llegadas tarde",  v:tardes,        c:"indigo",t:"tarde"},
+        {icon:"📋",label:"Citaciones",      v:citas,         c:"amber", t:"citacion"},
+        {icon:"🚨",label:"Accidentes",      v:acc,           c:"red",   t:"accidente"},
+        {icon:"📁",label:"Pases/Docs",      v:pases,         c:"teal",  t:"pases"},
+      ].map(({icon,label,v,c,t})=>{
+        const bg={indigo:"bg-indigo-50 border-indigo-100",amber:"bg-amber-50 border-amber-100",red:"bg-red-50 border-red-100",green:"bg-green-50 border-green-100",slate:"bg-slate-50 border-slate-100",teal:"bg-teal-50 border-teal-100"};
+        const num={indigo:"text-indigo-700",amber:"text-amber-700",red:"text-red-700",green:"text-emerald-700",slate:"text-slate-700",teal:"text-teal-700"};
+        return <div key={label} className={`rounded-2xl border p-4 ${bg[c]} cursor-pointer hover:opacity-80 transition`} onClick={()=>setTab(t)}>
+          <div className="text-2xl">{icon}</div>
+          <div className={`text-3xl font-black mt-1 ${num[c]}`}>{v}</div>
+          <div className="text-xs text-gray-500 mt-0.5">{label}</div>
+        </div>;
+      })}
+    </div>
+
+    {records.length>0 && <Card>
+      <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">Últimos registros</p>
+      {records.slice(0,6).map(r=><div key={r.id} className="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
+        <span>{r.type==="tarde"?"🕐":r.type==="citacion"?"📋":r.type==="accidente"?"🚨":"📁"}</span>
+        <span className="text-sm font-semibold text-gray-800 flex-1 truncate">{r.alumno}</span>
+        <span className="text-xs text-gray-400">{r.curso}</span>
+        <span className="text-xs text-gray-300">{fmtFecha(r.fecha)}</span>
+      </div>)}
+    </Card>}
+    <Card>
+      <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">📁 Carpeta en Drive</p>
+      <p className="text-xs text-gray-500 leading-relaxed">Todo queda guardado automáticamente en <strong>"Preceptoría Auxiliar"</strong> en tu Google Drive, organizado en subcarpetas: Actas de Accidente, Citaciones, Informes Diarios.</p>
+    </Card>
+  </div>;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// APP PRINCIPAL
+// ══════════════════════════════════════════════════════════════════
+function App() {
+  const [tab,setTab]         = useState("dashboard");
+  const [records,setRecords] = useState(()=>LS.get("prec_records",[]));
+  const [alumnos,setAlumnos] = useState(()=>LS.get("prec_alumnos",[]));
+  const [escuela,setEscuela] = useState(()=>LS.get("prec_escuela",""));
+  const [syncStatus,setSyncStatus] = useState(null);
+  const [loading,setLoading] = useState(false);
+
+  useEffect(()=>LS.set("prec_records",records),[records]);
+  useEffect(()=>LS.set("prec_alumnos",alumnos),[alumnos]);
+  useEffect(()=>LS.set("prec_escuela",escuela),[escuela]);
+
+  useEffect(()=>{
+    if(SCRIPT_URL.includes("REEMPLAZAR")) return;
+    setLoading(true);
+    fetch(SCRIPT_URL).then(r=>r.json()).then(data=>{
+      if(data.ok){
+        if(data.alumnos?.length) setAlumnos(data.alumnos);
+        if(data.records?.length) setRecords(data.records);
+        setSyncStatus("ok");
+      }
+    }).catch(()=>setSyncStatus("error")).finally(()=>setLoading(false));
+  },[]);
+
+  const onSaveAlumnos = async lista => {
+    setSyncStatus("saving");
+    try { await api({action:"saveAlumnos",data:lista}); setSyncStatus("ok"); }
+    catch { setSyncStatus("error"); }
+  };
+
+  const tabs = [
+    {id:"dashboard", icon:"🏠", label:"Inicio"},
+    {id:"alumnos",   icon:"👥", label:"Alumnos"},
+    {id:"tarde",     icon:"🕐", label:"Tardanzas"},
+    {id:"citacion",  icon:"📋", label:"Citaciones"},
+    {id:"accidente", icon:"🚨", label:"Accidentes"},
+    {id:"pases",     icon:"📁", label:"Pases"},
+    {id:"informe",   icon:"📅", label:"Informe"},
+  ];
+
+  const props = {records,setRecords,alumnos,escuela,syncStatus};
+
+  return <div className="min-h-screen bg-gray-50">
+    <div className="max-w-lg mx-auto pb-32">
+      <div className="px-4 pt-6">
+        {tab==="dashboard" && <Dashboard records={records} alumnos={alumnos} setTab={setTab} escuela={escuela} setEscuela={setEscuela} syncStatus={syncStatus} loading={loading}/>}
+        {tab==="alumnos"   && <ModAlumnos alumnos={alumnos} setAlumnos={setAlumnos} syncStatus={syncStatus} onSaveAlumnos={onSaveAlumnos}/>}
+        {tab==="tarde"     && <ModTarde     {...props}/>}
+        {tab==="citacion"  && <ModCitacion  {...props}/>}
+        {tab==="accidente" && <ModAccidente {...props}/>}
+        {tab==="pases"     && <ModPases     {...props}/>}
+        {tab==="informe"   && <ModInforme records={records} escuela={escuela}/>}
+      </div>
+    </div>
+    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 shadow-2xl">
+      <div className="max-w-lg mx-auto flex">
+        {tabs.map(({id,icon,label})=><button key={id} onClick={()=>setTab(id)}
+          className={`flex-1 flex flex-col items-center py-2 text-[8px] font-bold tracking-wide transition-all ${tab===id?"text-indigo-700 border-t-2 border-indigo-600 bg-indigo-50/60":"text-gray-400 hover:text-gray-600"}`}>
+          <span className="text-base">{icon}</span>
+          <span className="mt-0.5">{label}</span>
+        </button>)}
+      </div>
+    </div>
+  </div>;
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
