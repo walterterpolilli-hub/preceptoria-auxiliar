@@ -41,6 +41,19 @@ const TIPOS_PASE  = ["Pase","Certificado médico","Nota informativa","Solicitud 
 
 // ── HELPERS ─────────────────────────────────────────────────────
 const hoyISO    = () => new Date().toISOString().slice(0,10);
+// Normaliza fechas desde Drive (dd/m/yyyy o d/m/yyyy) a ISO (yyyy-mm-dd)
+const toISO = fecha => {
+  if(!fecha) return "";
+  if(/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return fecha; // ya es ISO
+  const parts = String(fecha).split("/");
+  if(parts.length===3){
+    const [d,m,y] = parts;
+    return `${y}-${m.padStart(2,"0")}-${d.padStart(2,"0")}`;
+  }
+  // intenta parsear como fecha de JS (ej: "Sat Mar 14 2026...")
+  try { const dt=new Date(fecha); if(!isNaN(dt)) return dt.toISOString().slice(0,10); } catch{}
+  return fecha;
+};
 const horaAhora = () => new Date().toTimeString().slice(0,5);
 const fmtFecha  = iso => { if(!iso) return "—"; const [y,m,d]=iso.split("-"); return `${d}/${m}/${y}`; };
 const DIAS  = ["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
@@ -155,30 +168,37 @@ function DriveResult({res}) {
   </div>;
 }
 
-// ── SELECTOR ALUMNO ──────────────────────────────────────────────
+// ── SELECTOR ALUMNO: primero curso, luego alumno ─────────────────
 function AlumnoSel({alumnos, value, onChange}) {
-  const [q,setQ]       = useState("");
-  const [open,setOpen] = useState(false);
-  const sel = alumnos.find(a=>a.id===value);
-  const lista = alumnos.filter(a=>`${a.apellido} ${a.nombre} ${a.curso}`.toLowerCase().includes(q.toLowerCase())).slice(0,25);
-  return <Lbl label="Alumno/a">
-    <div className="relative">
-      <div className={`${iCls} cursor-pointer flex items-center justify-between`} onClick={()=>setOpen(!open)}>
-        <span className={sel?"text-gray-800":"text-gray-400"}>{sel?`${sel.apellido}, ${sel.nombre} — ${sel.curso}`:"— Buscar alumno/a —"}</span>
-        <span className="text-gray-400 text-xs ml-2">{open?"▲":"▼"}</span>
-      </div>
-      {open && <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-2xl overflow-hidden">
-        <div className="p-2 border-b border-gray-100"><input autoFocus className="w-full text-sm px-2 py-1.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-200" placeholder="Buscar..." value={q} onChange={e=>setQ(e.target.value)}/></div>
-        <div className="max-h-52 overflow-y-auto">
-          {lista.length===0 && <p className="text-xs text-gray-400 p-3 text-center">Sin resultados</p>}
-          {lista.map(a=><div key={a.id} className="px-3 py-2 text-sm cursor-pointer hover:bg-indigo-50 flex justify-between" onClick={()=>{onChange(a.id);setOpen(false);setQ("");}}>
-            <span className="font-semibold text-gray-800">{a.apellido}, {a.nombre}</span>
-            <span className="text-gray-400">{a.curso}</span>
-          </div>)}
-        </div>
-      </div>}
-    </div>
-  </Lbl>;
+  const sel    = alumnos.find(a=>a.id===value);
+  const cursos = [...new Set(alumnos.map(a=>a.curso))].sort();
+  const [curso,setCurso] = useState(sel?.curso||"");
+  const lista  = curso ? alumnos.filter(a=>a.curso===curso).sort((a,b)=>a.apellido.localeCompare(b.apellido)) : [];
+
+  const handleCurso = e => {
+    setCurso(e.target.value);
+    onChange(null); // resetear alumno al cambiar curso
+  };
+
+  return <div className="flex flex-col gap-2">
+    <Lbl label="Curso">
+      <select className={iCls} value={curso} onChange={handleCurso}>
+        <option value="">— Seleccionar curso —</option>
+        {cursos.map(c=><option key={c} value={c}>{c}</option>)}
+      </select>
+    </Lbl>
+    {curso && <Lbl label="Alumno/a">
+      <select className={iCls} value={value||""} onChange={e=>onChange(Number(e.target.value)||e.target.value)}>
+        <option value="">— Seleccionar alumno/a —</option>
+        {lista.map(a=><option key={a.id} value={a.id}>{a.apellido}, {a.nombre}</option>)}
+      </select>
+    </Lbl>}
+    {sel && <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-100 rounded-xl px-3 py-2">
+      <span className="text-xs text-indigo-400">✓</span>
+      <span className="text-sm font-bold text-indigo-800">{sel.apellido}, {sel.nombre}</span>
+      <span className="text-xs text-indigo-400 ml-auto">{sel.curso}</span>
+    </div>}
+  </div>;
 }
 
 // ── HISTORIAL ITEM ────────────────────────────────────────────────
@@ -595,7 +615,7 @@ function ModPases({records, setRecords, alumnos, escuela, syncStatus}) {
   `Pase — ${r.alumno}`);
 
   const pases = records.filter(r=>r.type==="pase");
-  const paseHoy = pases.filter(r=>r.fecha===hoyISO());
+  const paseHoy = pases.filter(r=>toISO(r.fecha)===hoyISO());
 
   return <div className="space-y-5">
     <SecHdr icon="📁" title="Pases y Documentación" sub="Registrá documentación recibida y generá informe para secretaría" color="teal"/>
@@ -650,7 +670,7 @@ function ModInforme({records, escuela}) {
   const [driveRes,setDriveRes] = useState(null);
   const [driveErr,setDriveErr] = useState(null);
 
-  const del_dia = records.filter(r=>r.fecha===fecha).sort((a,b)=>(a.hora||"00:00").localeCompare(b.hora||"00:00"));
+  const del_dia = records.filter(r=>toISO(r.fecha)===fecha).sort((a,b)=>(a.hora||"00:00").localeCompare(b.hora||"00:00"));
   const tardes  = del_dia.filter(r=>r.type==="tarde");
   const citas   = del_dia.filter(r=>r.type==="citacion");
   const accs    = del_dia.filter(r=>r.type==="accidente");
@@ -844,10 +864,75 @@ function Dashboard({records, alumnos, setTab, escuela, setEscuela, syncStatus, l
   </div>;
 }
 
+
+// ══════════════════════════════════════════════════════════════════
+// SPLASH SCREEN
+// ══════════════════════════════════════════════════════════════════
+function Splash({onEnd}) {
+  const [fase,setFase] = useState(0);
+  // fase 0: logo aparece  fase 1: texto  fase 2: fade out
+  useEffect(()=>{
+    const t1 = setTimeout(()=>setFase(1), 600);
+    const t2 = setTimeout(()=>setFase(2), 2200);
+    const t3 = setTimeout(()=>onEnd(),   2900);
+    return ()=>{clearTimeout(t1);clearTimeout(t2);clearTimeout(t3);};
+  },[]);
+  return <div style={{
+    position:"fixed",inset:0,zIndex:9999,
+    background:"linear-gradient(135deg,#0f172a 0%,#1e293b 60%,#0f1f3d 100%)",
+    display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
+    transition:"opacity 0.7s",opacity:fase===2?0:1
+  }}>
+    {/* Anillo decorativo */}
+    <div style={{
+      position:"absolute",width:260,height:260,borderRadius:"50%",
+      border:"1px solid rgba(200,146,10,0.2)",
+      animation:"pulse 2s ease-in-out infinite"
+    }}/>
+    <div style={{
+      position:"absolute",width:200,height:200,borderRadius:"50%",
+      border:"1px solid rgba(200,146,10,0.12)"
+    }}/>
+    <style>{`@keyframes pulse{0%,100%{transform:scale(1);opacity:.6}50%{transform:scale(1.05);opacity:1}}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}`}</style>
+
+    {/* Logo */}
+    <div style={{
+      transition:"all 0.8s cubic-bezier(.34,1.56,.64,1)",
+      transform:fase>=0?"scale(1)":"scale(0.5)",
+      opacity:fase>=0?1:0,
+      filter:"drop-shadow(0 0 24px rgba(200,146,10,0.5))"
+    }} dangerouslySetInnerHTML={{__html:  + CASCO + }}/>
+
+    {/* Nombre */}
+    <div style={{
+      marginTop:24,textAlign:"center",
+      animation:fase>=1?"fadeUp 0.6s ease forwards":"none",
+      opacity:fase>=1?1:0
+    }}>
+      <div style={{
+        fontSize:52,fontWeight:900,letterSpacing:16,color:"#c8920a",
+        fontFamily:"serif",textShadow:"0 0 40px rgba(200,146,10,0.4)"
+      }}>SPA</div>
+      <div style={{color:"rgba(255,255,255,0.5)",fontSize:13,marginTop:4,letterSpacing:3}}>
+        SISTEMA DE PRECEPTORÍA AUXILIAR
+      </div>
+    </div>
+
+    {/* Línea dorada */}
+    <div style={{
+      marginTop:32,width:fase>=1?120:0,height:1,
+      background:"linear-gradient(90deg,transparent,#c8920a,transparent)",
+      transition:"width 0.8s ease 0.3s"
+    }}/>
+  </div>;
+}
+
 // ══════════════════════════════════════════════════════════════════
 // APP PRINCIPAL
 // ══════════════════════════════════════════════════════════════════
 function App() {
+  const [splash,setSplash]   = useState(true);
   const [tab,setTab]         = useState("dashboard");
   const [records,setRecords] = useState(()=>LS.get("prec_records",[]));
   const [alumnos,setAlumnos] = useState(()=>LS.get("prec_alumnos",[]));
@@ -889,7 +974,7 @@ function App() {
 
   const props = {records,setRecords,alumnos,escuela,syncStatus};
 
-  return <div className="min-h-screen bg-gray-50">
+  return <>{splash && <Splash onEnd={()=>setSplash(false)}/>}<div className="min-h-screen bg-gray-50" style={{opacity:splash?0:1,transition:"opacity 0.5s"}}>
     <div className="max-w-lg mx-auto pb-32">
       <div className="px-4 pt-6">
         {tab==="dashboard" && <Dashboard records={records} alumnos={alumnos} setTab={setTab} escuela={escuela} setEscuela={setEscuela} syncStatus={syncStatus} loading={loading}/>}
@@ -910,7 +995,7 @@ function App() {
         </button>)}
       </div>
     </div>
-  </div>;
+  </div></>;
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
