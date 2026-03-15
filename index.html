@@ -870,61 +870,163 @@ function Dashboard({records, alumnos, setTab, escuela, setEscuela, syncStatus, l
 // ══════════════════════════════════════════════════════════════════
 function Splash({onEnd}) {
   const [fase,setFase] = useState(0);
-  // fase 0: logo aparece  fase 1: texto  fase 2: fade out
   useEffect(()=>{
-    const t1 = setTimeout(()=>setFase(1), 600);
-    const t2 = setTimeout(()=>setFase(2), 2200);
-    const t3 = setTimeout(()=>onEnd(),   2900);
+    const t1 = setTimeout(()=>setFase(1), 700);
+    const t2 = setTimeout(()=>setFase(2), 4300);
+    const t3 = setTimeout(()=>onEnd(),   5000);
     return ()=>{clearTimeout(t1);clearTimeout(t2);clearTimeout(t3);};
   },[]);
+  const css = `
+    @keyframes pulseRing{0%,100%{transform:scale(1);opacity:.5}50%{transform:scale(1.07);opacity:.9}}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+    @keyframes expandLine{from{width:0}to{width:140px}}
+    @keyframes guerreroL{0%,100%{transform:translateX(0) rotate(0deg)}40%{transform:translateX(7px) rotate(1.5deg)}60%{transform:translateX(3px) rotate(0.5deg)}}
+    @keyframes guerreroR{0%,100%{transform:translateX(0) rotate(0deg)}40%{transform:translateX(-7px) rotate(-1.5deg)}60%{transform:translateX(-3px) rotate(-0.5deg)}}
+    @keyframes lanceL{0%,100%{transform:translateX(0)}40%{transform:translateX(10px)}60%{transform:translateX(5px)}}
+    @keyframes lanceR{0%,100%{transform:translateX(0)}40%{transform:translateX(-10px)}60%{transform:translateX(-5px)}}
+    @keyframes chispa{0%,100%{opacity:.9;transform:scale(1)}50%{opacity:.2;transform:scale(1.8)}}
+    @keyframes chispaRay{0%,100%{opacity:.8}50%{opacity:.1}}
+    @keyframes cascoFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+    @keyframes shimmer{0%,100%{opacity:.12}50%{opacity:.3}}
+  `;
+
   return <div style={{
     position:"fixed",inset:0,zIndex:9999,
-    background:"linear-gradient(135deg,#0f172a 0%,#1e293b 60%,#0f1f3d 100%)",
+    background:"linear-gradient(135deg,#0a0f1e 0%,#1e293b 55%,#0f1a3d 100%)",
     display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
-    transition:"opacity 0.7s",opacity:fase===2?0:1
+    transition:"opacity 0.7s ease",opacity:fase===2?0:1,
+    overflow:"hidden"
   }}>
-    {/* Anillo decorativo */}
-    <div style={{
-      position:"absolute",width:260,height:260,borderRadius:"50%",
-      border:"1px solid rgba(200,146,10,0.2)",
-      animation:"pulse 2s ease-in-out infinite"
-    }}/>
-    <div style={{
-      position:"absolute",width:200,height:200,borderRadius:"50%",
-      border:"1px solid rgba(200,146,10,0.12)"
-    }}/>
-    <style>{`@keyframes pulse{0%,100%{transform:scale(1);opacity:.6}50%{transform:scale(1.05);opacity:1}}
-    @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}`}</style>
+    <style>{css}</style>
 
-    {/* Logo */}
-    <div style={{
-      transition:"all 0.8s cubic-bezier(.34,1.56,.64,1)",
-      transform:fase>=0?"scale(1)":"scale(0.5)",
-      opacity:fase>=0?1:0,
-      filter:"drop-shadow(0 0 24px rgba(200,146,10,0.5))"
-    }} dangerouslySetInnerHTML={{__html: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 160" width="120" height="120"><ellipse cx="100" cy="28" rx="8" ry="22" fill="#cc1a00"/><rect x="93" y="6" width="14" height="10" rx="4" fill="#cc1a00"/><ellipse cx="100" cy="80" rx="52" ry="36" fill="#c8920a"/><rect x="48" y="80" width="104" height="52" rx="6" fill="#c8920a"/><ellipse cx="100" cy="80" rx="52" ry="36" fill="none" stroke="#8a6000" stroke-width="2.5"/><path d="M48 82 Q36 100 40 120 L58 120 Q52 102 54 82 Z" fill="#b07a08"/><path d="M152 82 Q164 100 160 120 L142 120 Q148 102 146 82 Z" fill="#b07a08"/><rect x="88" y="88" width="24" height="36" rx="5" fill="#7a5200"/><rect x="52" y="88" width="30" height="9" rx="3" fill="#2a1800"/><rect x="118" y="88" width="30" height="9" rx="3" fill="#2a1800"/><ellipse cx="78" cy="68" rx="16" ry="10" fill="#e8c84a" opacity="0.25"/><ellipse cx="74" cy="64" rx="7" ry="4" fill="#fff" opacity="0.15"/></svg>'}}/>
+    {/* Anillos decorativos */}
+    <div style={{position:"absolute",width:420,height:420,borderRadius:"50%",border:"1px solid rgba(200,146,10,.09)",animation:"shimmer 3s ease-in-out infinite"}}/>
+    <div style={{position:"absolute",width:300,height:300,borderRadius:"50%",border:"1px solid rgba(200,146,10,.18)",animation:"pulseRing 2.4s ease-in-out infinite"}}/>
+    <div style={{position:"absolute",width:200,height:200,borderRadius:"50%",border:"1px solid rgba(200,146,10,.12)",animation:"pulseRing 2.4s ease-in-out infinite .5s"}}/>
 
-    {/* Nombre */}
-    <div style={{
-      marginTop:24,textAlign:"center",
-      animation:fase>=1?"fadeUp 0.6s ease forwards":"none",
-      opacity:fase>=1?1:0
-    }}>
-      <div style={{
-        fontSize:52,fontWeight:900,letterSpacing:16,color:"#c8920a",
-        fontFamily:"serif",textShadow:"0 0 40px rgba(200,146,10,0.4)"
-      }}>SPA</div>
-      <div style={{color:"rgba(255,255,255,0.5)",fontSize:13,marginTop:4,letterSpacing:3}}>
-        SISTEMA DE PRECEPTORÍA AUXILIAR
-      </div>
+    {/* Casco flotante */}
+    <div style={{animation:"cascoFloat 3s ease-in-out infinite",filter:"drop-shadow(0 0 28px rgba(200,146,10,.6))"}}>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 160" width="110" height="110">
+        <ellipse cx="100" cy="28" rx="8" ry="22" fill="#cc1a00"/>
+        <rect x="93" y="6" width="14" height="10" rx="4" fill="#aa1400"/>
+        <ellipse cx="100" cy="80" rx="52" ry="36" fill="#c8920a"/>
+        <rect x="48" y="80" width="104" height="52" rx="6" fill="#c8920a"/>
+        <ellipse cx="100" cy="80" rx="52" ry="36" fill="none" stroke="#8a6000" strokeWidth="2.5"/>
+        <path d="M48 82 Q36 100 40 120 L58 120 Q52 102 54 82 Z" fill="#b07a08"/>
+        <path d="M152 82 Q164 100 160 120 L142 120 Q148 102 146 82 Z" fill="#b07a08"/>
+        <rect x="88" y="88" width="24" height="36" rx="5" fill="#7a5200"/>
+        <rect x="52" y="88" width="30" height="9" rx="3" fill="#2a1800"/>
+        <rect x="118" y="88" width="30" height="9" rx="3" fill="#2a1800"/>
+        <ellipse cx="78" cy="68" rx="16" ry="10" fill="#e8c84a" opacity="0.28"/>
+        <ellipse cx="74" cy="64" rx="7" ry="4" fill="#fff" opacity="0.14"/>
+      </svg>
+    </div>
+
+    {/* Nombre SPA */}
+    <div style={{animation:fase>=1?"fadeUp .7s ease forwards":"none",opacity:fase>=1?1:0,textAlign:"center",marginTop:6}}>
+      <div style={{fontSize:54,fontWeight:900,letterSpacing:18,color:"#c8920a",fontFamily:"Georgia,serif",textShadow:"0 0 40px rgba(200,146,10,.45)"}}>SPA</div>
+      <div style={{color:"rgba(255,255,255,.42)",fontSize:11,letterSpacing:3.5,marginTop:2}}>SISTEMA DE PRECEPTORÍA AUXILIAR</div>
     </div>
 
     {/* Línea dorada */}
-    <div style={{
-      marginTop:32,width:fase>=1?120:0,height:1,
-      background:"linear-gradient(90deg,transparent,#c8920a,transparent)",
-      transition:"width 0.8s ease 0.3s"
-    }}/>
+    <div style={{height:1,background:"linear-gradient(90deg,transparent,#c8920a,transparent)",marginTop:14,animation:fase>=1?"expandLine .9s ease .3s both":"none",width:0}}/>
+
+    {/* Espartanos animados */}
+    <div style={{animation:fase>=1?"fadeUp .8s ease .6s both":"none",opacity:fase>=1?1:0,marginTop:16}}>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 170" width="320" height="160">
+
+        <line x1="20" y1="155" x2="320" y2="155" stroke="#8a6000" strokeWidth="1.2" opacity="0.4"/>
+
+        {/* ── ESPARTANO IZQUIERDO (rojo) ── */}
+        <g style={{animation:"guerreroL 1.6s ease-in-out infinite",transformOrigin:"82px 110px"}}>
+          {/* casco */}
+          <ellipse cx="82" cy="24" rx="5" ry="13" fill="#cc1a00"/>
+          <rect x="77" y="16" width="10" height="8" rx="3" fill="#aa1200"/>
+          <ellipse cx="82" cy="48" rx="19" ry="15" fill="#c8920a"/>
+          <rect x="63" y="48" width="38" height="20" rx="4" fill="#c8920a"/>
+          <ellipse cx="82" cy="48" rx="19" ry="15" fill="none" stroke="#7a5200" strokeWidth="1.5"/>
+          <rect x="78" y="53" width="8" height="15" rx="3" fill="#7a5200"/>
+          <rect x="63" y="51" width="12" height="6" rx="2" fill="#2a1800"/>
+          <rect x="85" y="51" width="12" height="6" rx="2" fill="#2a1800"/>
+          {/* brillo casco */}
+          <ellipse cx="72" cy="42" rx="7" ry="4" fill="#e8c84a" opacity="0.22"/>
+          {/* cuerpo */}
+          <path d="M69 68 Q64 92 61 122 Q71 126 82 124 Q93 126 103 122 Q100 92 95 68 Z" fill="#8b1a1a"/>
+          {/* capa */}
+          <path d="M63 72 Q50 98 46 128 Q55 131 59 122 Q67 103 73 82 Z" fill="#cc1a00" opacity="0.9"/>
+          {/* escudo */}
+          <circle cx="58" cy="100" r="23" fill="#7a5500" stroke="#c8920a" strokeWidth="2"/>
+          <circle cx="58" cy="100" r="15" fill="#5a3d00" stroke="#a07020" strokeWidth="1.5"/>
+          <circle cx="58" cy="100" r="5" fill="#c8920a"/>
+          <line x1="58" y1="77" x2="58" y2="123" stroke="#a07020" strokeWidth="1" opacity="0.6"/>
+          <line x1="35" y1="100" x2="81" y2="100" stroke="#a07020" strokeWidth="1" opacity="0.6"/>
+          {/* brazo lanza */}
+          <line x1="95" y1="78" x2="112" y2="94" stroke="#8b4513" strokeWidth="5" strokeLinecap="round"/>
+          {/* piernas */}
+          <rect x="71" y="120" width="11" height="33" rx="4" fill="#6b1515"/>
+          <rect x="85" y="120" width="11" height="33" rx="4" fill="#6b1515"/>
+          <rect x="67" y="150" width="17" height="7" rx="3" fill="#4a2e00"/>
+          <rect x="83" y="150" width="17" height="7" rx="3" fill="#4a2e00"/>
+        </g>
+
+        {/* lanza izquierda animada */}
+        <g style={{animation:"lanceL 1.6s ease-in-out infinite",transformOrigin:"80px 95px"}}>
+          <line x1="28" y1="82" x2="168" y2="97" stroke="#a07020" strokeWidth="3.5" strokeLinecap="round"/>
+          <polygon points="168,93 182,97 168,101" fill="#c8920a"/>
+          <line x1="28" y1="82" x2="20" y2="78" stroke="#6a4a00" strokeWidth="2" strokeLinecap="round"/>
+        </g>
+
+        {/* ── ESPARTANO DERECHO (azul) ── */}
+        <g style={{animation:"guerreroR 1.6s ease-in-out infinite",transformOrigin:"258px 110px"}}>
+          {/* casco */}
+          <ellipse cx="258" cy="24" rx="5" ry="13" fill="#cc1a00"/>
+          <rect x="253" y="16" width="10" height="8" rx="3" fill="#aa1200"/>
+          <ellipse cx="258" cy="48" rx="19" ry="15" fill="#c8920a"/>
+          <rect x="239" y="48" width="38" height="20" rx="4" fill="#c8920a"/>
+          <ellipse cx="258" cy="48" rx="19" ry="15" fill="none" stroke="#7a5200" strokeWidth="1.5"/>
+          <rect x="254" y="53" width="8" height="15" rx="3" fill="#7a5200"/>
+          <rect x="239" y="51" width="12" height="6" rx="2" fill="#2a1800"/>
+          <rect x="261" y="51" width="12" height="6" rx="2" fill="#2a1800"/>
+          {/* brillo casco */}
+          <ellipse cx="248" cy="42" rx="7" ry="4" fill="#e8c84a" opacity="0.22"/>
+          {/* cuerpo */}
+          <path d="M245 68 Q240 92 237 122 Q248 126 258 124 Q268 126 279 122 Q276 92 271 68 Z" fill="#1a3a8b"/>
+          {/* capa */}
+          <path d="M277 72 Q290 98 294 128 Q285 131 281 122 Q273 103 267 82 Z" fill="#2244cc" opacity="0.9"/>
+          {/* escudo */}
+          <circle cx="282" cy="100" r="23" fill="#1a3a6a" stroke="#4466cc" strokeWidth="2"/>
+          <circle cx="282" cy="100" r="15" fill="#0f2550" stroke="#3355bb" strokeWidth="1.5"/>
+          <circle cx="282" cy="100" r="5" fill="#4466cc"/>
+          <line x1="282" y1="77" x2="282" y2="123" stroke="#3355bb" strokeWidth="1" opacity="0.6"/>
+          <line x1="259" y1="100" x2="305" y2="100" stroke="#3355bb" strokeWidth="1" opacity="0.6"/>
+          {/* brazo lanza */}
+          <line x1="245" y1="78" x2="228" y2="94" stroke="#8b4513" strokeWidth="5" strokeLinecap="round"/>
+          {/* piernas */}
+          <rect x="248" y="120" width="11" height="33" rx="4" fill="#142d6b"/>
+          <rect x="262" y="120" width="11" height="33" rx="4" fill="#142d6b"/>
+          <rect x="244" y="150" width="17" height="7" rx="3" fill="#4a2e00"/>
+          <rect x="260" y="150" width="17" height="7" rx="3" fill="#4a2e00"/>
+        </g>
+
+        {/* lanza derecha animada */}
+        <g style={{animation:"lanceR 1.6s ease-in-out infinite",transformOrigin:"260px 95px"}}>
+          <line x1="312" y1="82" x2="172" y2="97" stroke="#a07020" strokeWidth="3.5" strokeLinecap="round"/>
+          <polygon points="172,93 158,97 172,101" fill="#c8920a"/>
+          <line x1="312" y1="82" x2="320" y2="78" stroke="#6a4a00" strokeWidth="2" strokeLinecap="round"/>
+        </g>
+
+        {/* ── CHISPAS ANIMADAS ── */}
+        <circle cx="170" cy="97" r="5" fill="#ffdd00" style={{animation:"chispa .5s ease-in-out infinite"}}/>
+        <line x1="170" y1="97" x2="160" y2="84" stroke="#ffaa00" strokeWidth="2" style={{animation:"chispaRay .5s ease-in-out infinite"}}/>
+        <line x1="170" y1="97" x2="180" y2="84" stroke="#ffaa00" strokeWidth="2" style={{animation:"chispaRay .5s ease-in-out infinite .1s"}}/>
+        <line x1="170" y1="97" x2="158" y2="105" stroke="#ff8800" strokeWidth="1.5" style={{animation:"chispaRay .5s ease-in-out infinite .2s"}}/>
+        <line x1="170" y1="97" x2="182" y2="105" stroke="#ff8800" strokeWidth="1.5" style={{animation:"chispaRay .5s ease-in-out infinite .15s"}}/>
+        <line x1="170" y1="97" x2="170" y2="82" stroke="#ffcc00" strokeWidth="1.5" style={{animation:"chispaRay .5s ease-in-out infinite .05s"}}/>
+        <circle cx="163" cy="88" r="2" fill="#ffcc00" style={{animation:"chispa .5s ease-in-out infinite .2s"}}/>
+        <circle cx="177" cy="88" r="2" fill="#ffcc00" style={{animation:"chispa .5s ease-in-out infinite .3s"}}/>
+      </svg>
+    </div>
   </div>;
 }
 
