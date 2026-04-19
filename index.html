@@ -851,9 +851,9 @@ function ModCiudadania() {
   const [selTP, setSelTP]       = useState("");
   const [informe, setInforme]   = useState("Seleccioná un tipo de informe arriba.");
   // modales
-  const [modalAlumno, setModalAlumno] = useState(null); // id alumno
+  const [modalAlumno, setModalAlumno] = useState(null);
   const [modalTP, setModalTP]         = useState(false);
-  const [modalCit, setModalCit]       = useState(null); // id alumno
+  const [modalCit, setModalCit]       = useState(null);
   const [modalInf, setModalInf]       = useState(false);
   // form TP
   const [tpNum, setTpNum]     = useState("");
@@ -867,6 +867,21 @@ function ModCiudadania() {
   const [citObs, setCitObs]      = useState("");
   // form notas (local edit)
   const [notasEdit, setNotasEdit] = useState({});
+  // sync Drive
+  const [ciuSync, setCiuSync]   = useState("idle"); // idle | loading | saving | ok | error
+  const [ciuErr, setCiuErr]     = useState("");
+
+  // Al montar: intentar cargar calificaciones desde Drive
+  useEffect(()=>{
+    setCiuSync("loading");
+    api({action:"getCiudadania"}).then(res=>{
+      if(res.ok && res.notas && Object.keys(res.notas).length>0){
+        setNotas(res.notas);
+        CIU_LS.set("notas", res.notas);
+      }
+      setCiuSync("ok");
+    }).catch(()=>setCiuSync("idle")); // si falla silencioso, usa localStorage
+  },[]);
 
   // persist
   const saveAsist = (v) => { setAsist(v); CIU_LS.set("asist",v); };
@@ -941,10 +956,15 @@ function ModCiudadania() {
     return {estado:"pendiente", label:"Pendiente", color:"slate", detalle:""};
   };
 
-  const guardarNotasActual = () => {
+  const guardarNotasActual = async () => {
     const merged = {...notas, ...notasEdit};
     saveNotas(merged); setNotasEdit({});
-    alert("Calificaciones guardadas correctamente.");
+    setCiuSync("saving"); setCiuErr("");
+    try {
+      const res = await api({action:"saveCiudadania", data:{notas: merged}});
+      if(res.ok){ setCiuSync("ok"); }
+      else { setCiuSync("error"); setCiuErr(res.error||"Error desconocido"); }
+    } catch(err){ setCiuSync("error"); setCiuErr(err.toString()); }
   };
   const setNotaEdit = (id,campo,val) => {
     setNotasEdit(prev=>({...prev, [id]:{...(prev[id]||notas[id]||{}), [campo]:val}}));
@@ -1114,8 +1134,18 @@ function ModCiudadania() {
     {/* Header */}
     <div className="bg-gradient-to-br from-purple-700 to-indigo-900 rounded-2xl p-5 text-white shadow-lg">
       <span className="text-3xl">🏛️</span>
-      <h2 className="text-xl font-black mt-1 tracking-tight">Construcción de la Ciudadanía</h2>
-      <p className="text-xs opacity-70 mt-0.5">2° año 3° sección · Prof. Walter Terpolilli · Turno Tarde · Martes y Jueves</p>
+      <div className="flex items-start justify-between mt-1">
+        <div>
+          <h2 className="text-xl font-black tracking-tight">Construcción de la Ciudadanía</h2>
+          <p className="text-xs opacity-70 mt-0.5">2° año 3° sección · Prof. Walter Terpolilli · Turno Tarde · Martes y Jueves</p>
+        </div>
+        <div className="ml-2 mt-1 flex-shrink-0">
+          {ciuSync==="loading" && <span className="text-[10px] bg-white/20 text-white rounded-full px-2 py-0.5 font-bold"><span className="spin inline-block">↻</span> Cargando</span>}
+          {ciuSync==="saving"  && <span className="text-[10px] bg-white/20 text-white rounded-full px-2 py-0.5 font-bold"><span className="spin inline-block">↻</span> Guardando</span>}
+          {ciuSync==="ok"      && <span className="text-[10px] bg-green-400/30 text-green-200 rounded-full px-2 py-0.5 font-bold">✓ Drive</span>}
+          {ciuSync==="error"   && <span className="text-[10px] bg-red-400/30 text-red-200 rounded-full px-2 py-0.5 font-bold" title={ciuErr}>✗ Error</span>}
+        </div>
+      </div>
     </div>
 
     {/* Tabs internos */}
@@ -1394,8 +1424,12 @@ function ModCiudadania() {
           </div>
         </Card>
 
-        <div className="text-right">
-          <button onClick={guardarNotasActual} className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-xl transition">💾 Guardar calificaciones</button>
+        <div className="flex items-center justify-end gap-3">
+          {ciuSync==="error" && <span className="text-[10px] text-red-500 flex-1">⚠️ {ciuErr}</span>}
+          <button onClick={guardarNotasActual} disabled={ciuSync==="saving"||ciuSync==="loading"}
+            className={`text-xs font-bold px-4 py-2 rounded-xl transition ${ciuSync==="saving"?"bg-gray-300 text-gray-500 cursor-not-allowed":"bg-indigo-600 hover:bg-indigo-700 text-white"}`}>
+            {ciuSync==="saving"?<><span className="spin inline-block mr-1">↻</span>Guardando...</>:"💾 Guardar en Drive"}
+          </button>
         </div>
       </div>;
     })()}
