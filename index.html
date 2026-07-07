@@ -909,6 +909,10 @@ function ModCiudadania() {
       }
       if(rAlumnos.ok && rAlumnos.alumnos && rAlumnos.alumnos.length>0){
         setAlumnosCiu(rAlumnos.alumnos); CIU_LS.set("alumnos", rAlumnos.alumnos);
+      } else {
+        // Ciu_Alumnos vacía — guardar la lista actual en Drive automáticamente
+        const listaActual = CIU_LS.get("alumnos", ALUMNOS_CIU_DEFAULT);
+        api({action:"saveCiuAlumnos", data:{alumnos: listaActual}});
       }
       setCiuSync("ok");
     }).catch(()=>setCiuSync("idle"));
