@@ -827,13 +827,26 @@ const ALUMNOS_CIU = [
   {id:33,ap:"Scorza",nom:"Matteo Lionel"},{id:34,ap:"Silva Godoy",nom:"Orion Benjamin"},
   {id:35,ap:"Silva",nom:"Victoria Valentina"},{id:36,ap:"Silveyra",nom:"Mateo Benjamin"},
   {id:37,ap:"Stark",nom:"Thian Misael"},{id:38,ap:"Tejerina Tejerina",nom:"Samira Charlotte"},
-  {id:39,ap:"Valdivia",nom:"Olivia Lujan"},{id:40,ap:"Vera",nom:"Valentino Gabriel"},
-  {id:41,ap:"Silva",nom:"Thaiel"}
+  {id:39,ap:"Valdivia",nom:"Olivia Lujan"},{id:40,ap:"Vera",nom:"Valentino Gabriel"}
 ];
 
 const CIU_LS = {
   get:(k,fb)=>{try{const v=localStorage.getItem("ciu_"+k);return v?JSON.parse(v):fb;}catch{return fb;}},
   set:(k,v)=>{try{localStorage.setItem("ciu_"+k,JSON.stringify(v));}catch{}}
+};
+
+// Opciones de calificación para TPs
+const NOTAS_TP = ["+","-","1","2","3","4","5","6","7","8","9","10","R","B","MB"];
+// Convierte nota TP a valor numérico para calcular promedio
+const notaTPaNum = (n) => {
+  if(!n||n==="") return null;
+  if(n==="+") return 8;
+  if(n==="-") return 5;
+  if(n==="R") return 4;
+  if(n==="B") return 7;
+  if(n==="MB") return 10;
+  const p = parseFloat(n);
+  return isNaN(p)?null:p;
 };
 
 function ncCiu(a){return a.ap+", "+a.nom;}
@@ -850,6 +863,7 @@ function ModCiudadania() {
   const [filtroAsist, setFilA]  = useState("");
   const [buscarAsist, setBusA]  = useState("");
   const [selTP, setSelTP]       = useState("");
+  const [promedioEdit, setPromEdit] = useState({}); // {alumId: {c1: "7", c2: ""}} — overrides calculado
   const [informe, setInforme]   = useState("Seleccioná un tipo de informe arriba.");
   // modales
   const [modalAlumno, setModalAlumno] = useState(null);
@@ -861,6 +875,7 @@ function ModCiudadania() {
   const [tpNom, setTpNom]     = useState("");
   const [tpFec, setTpFec]     = useState("");
   const [tpGrup, setTpGrup]   = useState("no");
+  const [tpCuat, setTpCuat]   = useState("1");
   // form cit
   const [citMotivos, setCitMot]  = useState([]);
   const [citOtras, setCitOtras]  = useState("");
@@ -904,7 +919,7 @@ function ModCiudadania() {
   const crearTP = () => {
     const num = parseInt(tpNum)||tps.length+1;
     const nombre = tpNom.trim()||("TP "+num);
-    const tp = {id:"tp"+Date.now(), num, nombre, fecha:tpFec, grupal:tpGrup==="si"};
+    const tp = {id:"tp"+Date.now(), num, nombre, fecha:tpFec, grupal:tpGrup==="si", cuatrimestre:tpCuat||"1"};
     const nuevoTps = [...tps, tp];
     const nuevoEst = {...tpEstados, [tp.id]:{}};
     ALUMNOS_CIU.forEach(a=>{ nuevoEst[tp.id][a.id]={estado:"NE",nota:""}; });
@@ -915,6 +930,30 @@ function ModCiudadania() {
   const setTPEstado = (tpId, alumId, campo, val) => {
     const nuevoEst = {...tpEstados, [tpId]:{...(tpEstados[tpId]||{}), [alumId]:{...(tpEstados[tpId]?.[alumId]||{estado:"NE",nota:""}), [campo]:val}}};
     setTpEst(nuevoEst); CIU_LS.set("tpest",nuevoEst);
+  };
+
+  // Calcula promedio numérico de TPs entregados de un cuatrimestre para un alumno
+  const calcPromedioTPsCuat = (alumId, cuatNum) => {
+    const tpsCuat = tps.filter(t=>(t.cuatrimestre||"1")===String(cuatNum));
+    const vals = tpsCuat.map(tp=>{
+      const e=(tpEstados[tp.id]||{})[alumId]||{estado:"NE",nota:""};
+      if(e.estado==="NE") return null;
+      return notaTPaNum(e.nota);
+    }).filter(v=>v!==null);
+    if(!vals.length) return null;
+    return Math.round(vals.reduce((s,v)=>s+v,0)/vals.length*10)/10;
+  };
+
+  // Nota efectiva de promedio TP (editada o calculada)
+  const getPromTP = (alumId, cuatNum) => {
+    const editKey = `${alumId}_c${cuatNum}`;
+    if(promedioEdit[editKey]!==undefined) return promedioEdit[editKey];
+    const calc = calcPromedioTPsCuat(alumId, cuatNum);
+    return calc!==null ? String(calc) : "";
+  };
+  const setPromTP = (alumId, cuatNum, val) => {
+    const editKey = `${alumId}_c${cuatNum}`;
+    setPromEdit(prev=>({...prev,[editKey]:val}));
   };
 
   // ── CALIFICACIÓN ANUAL ──────────────────────────────────────────
@@ -970,7 +1009,13 @@ function ModCiudadania() {
   const setNotaEdit = (id,campo,val) => {
     setNotasEdit(prev=>({...prev, [id]:{...(prev[id]||notas[id]||{}), [campo]:val}}));
   };
-  const getNotaEfectiva = (id,campo) => notasEdit[id]?.[campo] ?? notas[id]?.[campo] ?? "";
+  const getNotaEfectiva = (id,campo) => {
+    const val = notasEdit[id]?.[campo] ?? notas[id]?.[campo] ?? "";
+    if(val !== "") return val;
+    if(campo === "c1"){ const p=calcPromedioTPsCuat(id,"1"); return p!==null?String(p):""; }
+    if(campo === "c2"){ const p=calcPromedioTPsCuat(id,"2"); return p!==null?String(p):""; }
+    return "";
+  };
 
   // citaciones
   const abrirCit = (id) => {
@@ -1084,7 +1129,7 @@ function ModCiudadania() {
           const e=(tpEstados[tp.id]||{})[id]||{estado:"NE",nota:""};
           return <div key={tp.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
             <span className="text-xs">TP {tp.num} — {tp.nombre}</span>
-            <div className="flex items-center gap-2">{estadoBadge(e.estado)}<span className="text-xs font-bold text-gray-500">{e.nota||"—"}</span></div>
+            <div className="flex items-center gap-2">{estadoBadge(e.estado)}<span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${e.nota?"bg-purple-50 text-purple-700 border-purple-200":"text-gray-400 border-gray-200 bg-gray-50"}`}>{e.nota||"—"}</span></div>
           </div>;
         })}
         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-4 mb-2">Calificaciones anuales</p>
@@ -1207,7 +1252,7 @@ function ModCiudadania() {
         <button onClick={()=>{setTpNum(tps.length+1+"");setTpNom("");setTpFec("");setTpGrup("no");setModalTP(true);}} className="text-xs bg-indigo-600 text-white font-bold px-3 py-1.5 rounded-lg">+ Nuevo TP</button>
       </div>
       {tps.length>0&&<div className="flex gap-1 flex-wrap mb-3">
-        {tps.map(t=><button key={t.id} onClick={()=>setSelTP(t.id)} className={`text-[10px] font-bold px-2 py-1 rounded-full border transition ${selTP===t.id?"bg-purple-600 text-white border-purple-600":"bg-purple-50 text-purple-700 border-purple-200"}`}>TP {t.num} — {t.nombre}</button>)}
+        {tps.map(t=><button key={t.id} onClick={()=>setSelTP(t.id)} className={`text-[10px] font-bold px-2 py-1 rounded-full border transition ${selTP===t.id?"bg-purple-600 text-white border-purple-600":"bg-purple-50 text-purple-700 border-purple-200"}`}>TP {t.num} — {t.nombre} <span className="opacity-70">C{t.cuatrimestre||"1"}</span></button>)}
       </div>}
       <select value={selTP} onChange={e=>setSelTP(e.target.value)} className={`${iCls} mb-3`}>
         <option value="">— Seleccionar TP —</option>
@@ -1219,7 +1264,7 @@ function ModCiudadania() {
             <th className="text-left py-2 px-1 text-gray-400 font-bold w-6">#</th>
             <th className="text-left py-2 px-1 text-gray-400 font-bold">Apellido y nombre</th>
             <th className="text-center py-2 px-1 text-gray-400 font-bold w-32">Estado</th>
-            <th className="text-center py-2 px-1 text-gray-400 font-bold w-16">Nota</th>
+            <th className="text-center py-2 px-1 text-gray-400 font-bold w-16">Calificación</th>
             <th className="text-center py-2 px-1 text-gray-400 font-bold w-10">Ver</th>
           </tr></thead>
           <tbody>
@@ -1238,12 +1283,60 @@ function ModCiudadania() {
                   </select>
                 </td>
                 <td className="py-2 px-1 text-center">
-                  <input type="number" min="1" max="10" value={e.nota||""} placeholder="—"
-                    onChange={ev=>setTPEstado(selTP,a.id,"nota",ev.target.value)}
-                    className="w-12 text-center border border-gray-200 rounded-lg px-1 py-1 text-[10px] bg-white"/>
+                  <select value={e.nota||""} onChange={ev=>setTPEstado(selTP,a.id,"nota",ev.target.value)}
+                    className="w-14 text-center border border-gray-200 rounded-lg px-1 py-1 text-[10px] bg-white">
+                    <option value="">—</option>
+                    {NOTAS_TP.map(n=><option key={n} value={n}>{n}</option>)}
+                  </select>
                 </td>
                 <td className="py-2 px-1 text-center">
                   <button onClick={()=>setModalAlumno(a.id)} className="text-gray-300 hover:text-indigo-500 text-sm">👁</button>
+                </td>
+              </tr>;
+            })}
+          </tbody>
+        </table>
+      </div>
+    </Card>}
+
+    {/* ── PROMEDIO TPs POR CUATRIMESTRE ── */}
+    {tabCiu==="tps" && tps.length>0 && <Card>
+      <p className="text-[10px] font-black text-purple-600 uppercase tracking-widest mb-1">📊 Promedio de TPs por cuatrimestre</p>
+      <p className="text-[10px] text-gray-400 mb-3">Calculado automáticamente a partir de las notas cargadas. Podés editarlo manualmente: el valor que ingreses quedará fijo (🔒) y no se actualizará con nuevas notas.</p>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead><tr className="border-b border-gray-100">
+            <th className="text-left py-1.5 px-1 text-gray-400 font-bold w-6">#</th>
+            <th className="text-left py-1.5 px-1 text-gray-400 font-bold">Alumno/a</th>
+            <th className="text-center py-1.5 px-1 text-gray-400 font-bold w-24">Prom. 1° Cuat.<br/><span className="font-normal text-[9px]">TPs 1° C.</span></th>
+            <th className="text-center py-1.5 px-1 text-gray-400 font-bold w-24">Prom. 2° Cuat.<br/><span className="font-normal text-[9px]">TPs 2° C.</span></th>
+          </tr></thead>
+          <tbody>
+            {ALUMNOS_CIU.map(a=>{
+              const p1=calcPromedioTPsCuat(a.id,"1");
+              const p2=calcPromedioTPsCuat(a.id,"2");
+              const editKey1=`${a.id}_c1`; const editKey2=`${a.id}_c2`;
+              const hasEdit1=promedioEdit[editKey1]!==undefined;
+              const hasEdit2=promedioEdit[editKey2]!==undefined;
+              const v1=getPromTP(a.id,"1"); const v2=getPromTP(a.id,"2");
+              return <tr key={a.id} className="border-b border-gray-50 hover:bg-gray-50">
+                <td className="py-1.5 px-1 text-gray-300">{a.id}</td>
+                <td className="py-1.5 px-1 font-medium">{ncCiu(a)}</td>
+                <td className="py-1.5 px-1 text-center">
+                  <div className="flex items-center justify-center gap-1">
+                    {hasEdit1 && <span title="Nota fijada manualmente" className="text-[9px] text-purple-500">🔒</span>}
+                    <input type="text" maxLength={4} value={v1} onChange={ev=>setPromTP(a.id,"1",ev.target.value)} placeholder={p1!==null?String(p1):"—"}
+                      className={`w-14 text-center border rounded px-1 py-0.5 text-[10px] ${hasEdit1?"border-purple-300 bg-purple-50 font-bold":"border-gray-200 bg-white text-gray-500"}`}/>
+                    {hasEdit1 && <button title="Restablecer automático" onClick={()=>setPromEdit(prev=>{const n={...prev};delete n[editKey1];return n;})} className="text-[9px] text-gray-300 hover:text-red-400">↩</button>}
+                  </div>
+                </td>
+                <td className="py-1.5 px-1 text-center">
+                  <div className="flex items-center justify-center gap-1">
+                    {hasEdit2 && <span title="Nota fijada manualmente" className="text-[9px] text-purple-500">🔒</span>}
+                    <input type="text" maxLength={4} value={v2} onChange={ev=>setPromTP(a.id,"2",ev.target.value)} placeholder={p2!==null?String(p2):"—"}
+                      className={`w-14 text-center border rounded px-1 py-0.5 text-[10px] ${hasEdit2?"border-purple-300 bg-purple-50 font-bold":"border-gray-200 bg-white text-gray-500"}`}/>
+                    {hasEdit2 && <button title="Restablecer automático" onClick={()=>setPromEdit(prev=>{const n={...prev};delete n[editKey2];return n;})} className="text-[9px] text-gray-300 hover:text-red-400">↩</button>}
+                  </div>
                 </td>
               </tr>;
             })}
@@ -1263,11 +1356,22 @@ function ModCiudadania() {
           <option value="TED">TED</option>
         </select>
       );
-      const NUM_SEL = ({id, campo, placeholder="—"}) => (
-        <input type="number" min="1" max="10" value={getNotaEfectiva(id,campo)||""} placeholder={placeholder}
-          onChange={ev=>setNotaEdit(id,campo,ev.target.value)}
-          className="w-10 text-center border border-gray-200 rounded px-1 py-0.5 text-[10px] bg-white"/>
-      );
+      const NUM_SEL = ({id, campo, placeholder="—"}) => {
+        const esCuat = campo==="c1"||campo==="c2";
+        const cuatNum = campo==="c1"?"1":"2";
+        const tieneEdicion = !!(notasEdit[id]?.[campo] ?? notas[id]?.[campo]);
+        const promAuto = esCuat ? calcPromedioTPsCuat(id, cuatNum) : null;
+        const esAutomatico = esCuat && !tieneEdicion && promAuto!==null;
+        return (
+          <div className="flex flex-col items-center gap-0.5">
+            <input type="number" min="1" max="10" value={getNotaEfectiva(id,campo)||""} placeholder={placeholder}
+              onChange={ev=>setNotaEdit(id,campo,ev.target.value)}
+              title={esAutomatico?"Promedio automático de TPs — editalo para fijar tu nota":"Nota fijada por vos"}
+              className={`w-12 text-center border rounded px-1 py-0.5 text-[10px] ${esAutomatico?"border-purple-300 bg-purple-50 text-purple-700":"border-gray-200 bg-white"}`}/>
+            {esCuat && <span className={`text-[8px] font-bold leading-none ${esAutomatico?"text-purple-400":"text-indigo-500"}`}>{esAutomatico?"≈ TPs":"✎ fija"}</span>}
+          </div>
+        );
+      };
       const finalBadge = (id) => {
         const f = calcularFinal(id);
         const cls = {green:"bg-green-100 text-green-700 border-green-200", amber:"bg-amber-100 text-amber-700 border-amber-200", red:"bg-red-100 text-red-700 border-red-200", slate:"bg-gray-100 text-gray-500 border-gray-200"};
@@ -1471,6 +1575,14 @@ function ModCiudadania() {
             <Inp label="Fecha de entrega" type="date" value={tpFec} onChange={e=>setTpFec(e.target.value)}/>
             <Sel label="¿Es grupal?" value={tpGrup} onChange={e=>setTpGrup(e.target.value)} opts={["no","si"]}/>
           </div>
+          <Lbl label="Cuatrimestre">
+            <div className="flex gap-2">
+              {["1","2"].map(c=><button key={c} type="button" onClick={()=>setTpCuat(c)}
+                className={`flex-1 py-2 text-xs font-bold rounded-xl border transition ${tpCuat===c?"bg-purple-600 text-white border-purple-600":"bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}>
+                {c}° Cuatrimestre
+              </button>)}
+            </div>
+          </Lbl>
           <div className="text-right pt-1">
             <button onClick={crearTP} className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-xl transition">Crear TP</button>
           </div>
