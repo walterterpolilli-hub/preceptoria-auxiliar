@@ -807,7 +807,7 @@ function ModInforme({records, escuela}) {
 // ══════════════════════════════════════════════════════════════════
 // MÓDULO CIUDADANÍA
 // ══════════════════════════════════════════════════════════════════
-const ALUMNOS_CIU = [
+const ALUMNOS_CIU_DEFAULT = [
   {id:1,ap:"Acosta",nom:"Ian Franco"},{id:2,ap:"Aguirre Gimenez",nom:"Rut Nahiara"},
   {id:3,ap:"Alarcon",nom:"Tomas Joaquin"},{id:4,ap:"Alegre",nom:"Dulce Brigitte"},
   {id:5,ap:"Argañaraz",nom:"Alma Fiorella"},{id:6,ap:"Bottaro Quintana",nom:"Lisandro"},
@@ -827,7 +827,8 @@ const ALUMNOS_CIU = [
   {id:33,ap:"Scorza",nom:"Matteo Lionel"},{id:34,ap:"Silva Godoy",nom:"Orion Benjamin"},
   {id:35,ap:"Silva",nom:"Victoria Valentina"},{id:36,ap:"Silveyra",nom:"Mateo Benjamin"},
   {id:37,ap:"Stark",nom:"Thian Misael"},{id:38,ap:"Tejerina Tejerina",nom:"Samira Charlotte"},
-  {id:39,ap:"Valdivia",nom:"Olivia Lujan"},{id:40,ap:"Vera",nom:"Valentino Gabriel"}
+  {id:39,ap:"Valdivia",nom:"Olivia Lujan"},{id:40,ap:"Vera",nom:"Valentino Gabriel"},
+  {id:41,ap:"Silva",nom:"Thaiel"}
 ];
 
 const CIU_LS = {
@@ -835,25 +836,13 @@ const CIU_LS = {
   set:(k,v)=>{try{localStorage.setItem("ciu_"+k,JSON.stringify(v));}catch{}}
 };
 
-// Opciones de calificación para TPs
-const NOTAS_TP = ["+","-","1","2","3","4","5","6","7","8","9","10","R","B","MB"];
-// Convierte nota TP a valor numérico para calcular promedio
-const notaTPaNum = (n) => {
-  if(!n||n==="") return null;
-  if(n==="+") return 8;
-  if(n==="-") return 5;
-  if(n==="R") return 4;
-  if(n==="B") return 7;
-  if(n==="MB") return 10;
-  const p = parseFloat(n);
-  return isNaN(p)?null:p;
-};
-
 function ncCiu(a){return a.ap+", "+a.nom;}
 function iniCiu(a){return(a.ap[0]+(a.nom[0]||"")).toUpperCase();}
 
 function ModCiudadania() {
   const [tabCiu, setTabCiu]     = useState("asistencia");
+  const [alumnosCiu, setAlumnosCiu] = useState(()=>CIU_LS.get("alumnos", ALUMNOS_CIU_DEFAULT));
+  const ALUMNOS_CIU = alumnosCiu; // alias para no tocar el resto del código
   const [asistencias, setAsist] = useState(()=>CIU_LS.get("asist",{}));
   const [tps, setTps]           = useState(()=>CIU_LS.get("tps",[]));
   const [tpEstados, setTpEst]   = useState(()=>CIU_LS.get("tpest",{}));
@@ -863,7 +852,6 @@ function ModCiudadania() {
   const [filtroAsist, setFilA]  = useState("");
   const [buscarAsist, setBusA]  = useState("");
   const [selTP, setSelTP]       = useState("");
-  const [promedioEdit, setPromEdit] = useState({}); // {alumId: {c1: "7", c2: ""}} — overrides calculado
   const [informe, setInforme]   = useState("Seleccioná un tipo de informe arriba.");
   // modales
   const [modalAlumno, setModalAlumno] = useState(null);
@@ -875,7 +863,6 @@ function ModCiudadania() {
   const [tpNom, setTpNom]     = useState("");
   const [tpFec, setTpFec]     = useState("");
   const [tpGrup, setTpGrup]   = useState("no");
-  const [tpCuat, setTpCuat]   = useState("1");
   // form cit
   const [citMotivos, setCitMot]  = useState([]);
   const [citOtras, setCitOtras]  = useState("");
@@ -883,27 +870,98 @@ function ModCiudadania() {
   const [citObs, setCitObs]      = useState("");
   // form notas (local edit)
   const [notasEdit, setNotasEdit] = useState({});
+  // sync estados por tab
+  const [syncAsist, setSyncAsist] = useState("idle"); // idle|saving|ok|error
+  const [syncTPs,   setSyncTPs]   = useState("idle");
+  const [syncCit,   setSyncCit]   = useState("idle");
+  // gestión alumnos
+  const [modalEditAlumno, setModalEditAlumno] = useState(null); // alumno a editar
+  const [modalNuevoAlumno, setModalNuevoAlumno] = useState(false);
+  const [editAp, setEditAp]   = useState("");
+  const [editNom, setEditNom] = useState("");
+  const [syncAlumnos, setSyncAlumnos] = useState("idle");
   // sync Drive
   const [ciuSync, setCiuSync]   = useState("idle"); // idle | loading | saving | ok | error
   const [ciuErr, setCiuErr]     = useState("");
 
-  // Al montar: intentar cargar calificaciones desde Drive
+  // Al montar: cargar TODO desde Drive
   useEffect(()=>{
     setCiuSync("loading");
-    api({action:"getCiudadania"}).then(res=>{
-      if(res.ok && res.notas && Object.keys(res.notas).length>0){
-        setNotas(res.notas);
-        CIU_LS.set("notas", res.notas);
+    Promise.all([
+      api({action:"getCiudadania"}),
+      api({action:"getCiuAsistencias"}),
+      api({action:"getCiuTPs"}),
+      api({action:"getCiuCitaciones"}),
+      api({action:"getCiuAlumnos"})
+    ]).then(([rNotas, rAsist, rTPs, rCit, rAlumnos])=>{
+      if(rNotas.ok && rNotas.notas && Object.keys(rNotas.notas).length>0){
+        setNotas(rNotas.notas); CIU_LS.set("notas", rNotas.notas);
+      }
+      if(rAsist.ok && rAsist.asistencias && Object.keys(rAsist.asistencias).length>0){
+        setAsist(rAsist.asistencias); CIU_LS.set("asist", rAsist.asistencias);
+      }
+      if(rTPs.ok && rTPs.tps && rTPs.tps.length>0){
+        setTps(rTPs.tps); CIU_LS.set("tps", rTPs.tps);
+        setTpEst(rTPs.tpEstados||{}); CIU_LS.set("tpest", rTPs.tpEstados||{});
+      }
+      if(rCit.ok && rCit.citaciones && Object.keys(rCit.citaciones).length>0){
+        setCit(rCit.citaciones); CIU_LS.set("cit", rCit.citaciones);
+      }
+      if(rAlumnos.ok && rAlumnos.alumnos && rAlumnos.alumnos.length>0){
+        setAlumnosCiu(rAlumnos.alumnos); CIU_LS.set("alumnos", rAlumnos.alumnos);
       }
       setCiuSync("ok");
-    }).catch(()=>setCiuSync("idle")); // si falla silencioso, usa localStorage
+    }).catch(()=>setCiuSync("idle"));
   },[]);
 
-  // persist
-  const saveAsist = (v) => { setAsist(v); CIU_LS.set("asist",v); };
-  const saveTps   = (t,e) => { setTps(t); setTpEst(e); CIU_LS.set("tps",t); CIU_LS.set("tpest",e); };
+  // helpers alumnos
+  const saveAlumnosCiu = async (lista) => {
+    setAlumnosCiu(lista); CIU_LS.set("alumnos", lista);
+    setSyncAlumnos("saving");
+    try { const r=await api({action:"saveCiuAlumnos", data:{alumnos:lista}}); setSyncAlumnos(r.ok?"ok":"error"); }
+    catch(e){ setSyncAlumnos("error"); }
+  };
+  const agregarAlumno = () => {
+    if(!editAp.trim()||!editNom.trim()){alert("Completá apellido y nombre.");return;}
+    const maxId = alumnosCiu.reduce((m,a)=>Math.max(m,a.id),0);
+    const nuevo = {id:maxId+1, ap:editAp.trim(), nom:editNom.trim()};
+    saveAlumnosCiu([...alumnosCiu, nuevo].sort((a,b)=>a.ap.localeCompare(b.ap)));
+    setModalNuevoAlumno(false); setEditAp(""); setEditNom("");
+  };
+  const editarAlumno = () => {
+    if(!editAp.trim()||!editNom.trim()){alert("Completá apellido y nombre.");return;}
+    const lista = alumnosCiu.map(a=>a.id===modalEditAlumno.id?{...a,ap:editAp.trim(),nom:editNom.trim()}:a);
+    saveAlumnosCiu(lista);
+    setModalEditAlumno(null); setEditAp(""); setEditNom("");
+  };
+  const eliminarAlumno = (id) => {
+    if(!confirm("¿Eliminar este alumno? Sus datos de asistencia, TPs y notas se conservan pero ya no aparecerá en las listas.")) return;
+    saveAlumnosCiu(alumnosCiu.filter(a=>a.id!==id));
+    setModalAlumno(null); setModalEditAlumno(null);
+  };
+
+  // helpers Drive save
+  const driveGuardarAsist = async (datos) => {
+    setSyncAsist("saving");
+    try { const r=await api({action:"saveCiuAsistencias",data:{asistencias:datos}}); setSyncAsist(r.ok?"ok":"error"); }
+    catch(e){ setSyncAsist("error"); }
+  };
+  const driveGuardarTPs = async (tpsData, estData) => {
+    setSyncTPs("saving");
+    try { const r=await api({action:"saveCiuTPs",data:{tps:tpsData, tpEstados:estData}}); setSyncTPs(r.ok?"ok":"error"); }
+    catch(e){ setSyncTPs("error"); }
+  };
+  const driveGuardarCit = async (datos) => {
+    setSyncCit("saving");
+    try { const r=await api({action:"saveCiuCitaciones",data:{citaciones:datos}}); setSyncCit(r.ok?"ok":"error"); }
+    catch(e){ setSyncCit("error"); }
+  };
+
+  // persist local + Drive
+  const saveAsist = (v) => { setAsist(v); CIU_LS.set("asist",v); driveGuardarAsist(v); };
+  const saveTps   = (t,e) => { setTps(t); setTpEst(e); CIU_LS.set("tps",t); CIU_LS.set("tpest",e); driveGuardarTPs(t,e); };
   const saveNotas = (v)   => { setNotas(v); CIU_LS.set("notas",v); };
-  const saveCit   = (v)   => { setCit(v); CIU_LS.set("cit",v); };
+  const saveCit   = (v)   => { setCit(v); CIU_LS.set("cit",v); driveGuardarCit(v); };
 
   // helpers asistencia
   const getAsist = (f,id) => (asistencias[f]||{})[id]||"";
@@ -919,7 +977,7 @@ function ModCiudadania() {
   const crearTP = () => {
     const num = parseInt(tpNum)||tps.length+1;
     const nombre = tpNom.trim()||("TP "+num);
-    const tp = {id:"tp"+Date.now(), num, nombre, fecha:tpFec, grupal:tpGrup==="si", cuatrimestre:tpCuat||"1"};
+    const tp = {id:"tp"+Date.now(), num, nombre, fecha:tpFec, grupal:tpGrup==="si"};
     const nuevoTps = [...tps, tp];
     const nuevoEst = {...tpEstados, [tp.id]:{}};
     ALUMNOS_CIU.forEach(a=>{ nuevoEst[tp.id][a.id]={estado:"NE",nota:""}; });
@@ -930,30 +988,7 @@ function ModCiudadania() {
   const setTPEstado = (tpId, alumId, campo, val) => {
     const nuevoEst = {...tpEstados, [tpId]:{...(tpEstados[tpId]||{}), [alumId]:{...(tpEstados[tpId]?.[alumId]||{estado:"NE",nota:""}), [campo]:val}}};
     setTpEst(nuevoEst); CIU_LS.set("tpest",nuevoEst);
-  };
-
-  // Calcula promedio numérico de TPs entregados de un cuatrimestre para un alumno
-  const calcPromedioTPsCuat = (alumId, cuatNum) => {
-    const tpsCuat = tps.filter(t=>(t.cuatrimestre||"1")===String(cuatNum));
-    const vals = tpsCuat.map(tp=>{
-      const e=(tpEstados[tp.id]||{})[alumId]||{estado:"NE",nota:""};
-      if(e.estado==="NE") return null;
-      return notaTPaNum(e.nota);
-    }).filter(v=>v!==null);
-    if(!vals.length) return null;
-    return Math.round(vals.reduce((s,v)=>s+v,0)/vals.length*10)/10;
-  };
-
-  // Nota efectiva de promedio TP (editada o calculada)
-  const getPromTP = (alumId, cuatNum) => {
-    const editKey = `${alumId}_c${cuatNum}`;
-    if(promedioEdit[editKey]!==undefined) return promedioEdit[editKey];
-    const calc = calcPromedioTPsCuat(alumId, cuatNum);
-    return calc!==null ? String(calc) : "";
-  };
-  const setPromTP = (alumId, cuatNum, val) => {
-    const editKey = `${alumId}_c${cuatNum}`;
-    setPromEdit(prev=>({...prev,[editKey]:val}));
+    driveGuardarTPs(tps, nuevoEst);
   };
 
   // ── CALIFICACIÓN ANUAL ──────────────────────────────────────────
@@ -1006,32 +1041,10 @@ function ModCiudadania() {
       else { setCiuSync("error"); setCiuErr(res.error||"Error desconocido"); }
     } catch(err){ setCiuSync("error"); setCiuErr(err.toString()); }
   };
-
-  const respaldarTodo = async () => {
-    setCiuSync("saving"); setCiuErr("");
-    try {
-      const merged = {...notas, ...notasEdit};
-      const [rNotas, rAsist, rTPs, rCit] = await Promise.all([
-        api({action:"saveCiudadania",     data:{notas: merged}}),
-        api({action:"saveCiuAsistencias", data:{asistencias}}),
-        api({action:"saveCiuTPs",         data:{tps, tpEstados}}),
-        api({action:"saveCiuCitaciones",  data:{citaciones}})
-      ]);
-      const ok = rNotas.ok && rAsist.ok && rTPs.ok && rCit.ok;
-      if(ok){ setCiuSync("ok"); alert("✅ Respaldo completo guardado en Drive.\nYa podés actualizar la app con seguridad."); }
-      else { setCiuSync("error"); setCiuErr("Algún módulo falló al guardar"); }
-    } catch(err){ setCiuSync("error"); setCiuErr(err.toString()); }
-  };
   const setNotaEdit = (id,campo,val) => {
     setNotasEdit(prev=>({...prev, [id]:{...(prev[id]||notas[id]||{}), [campo]:val}}));
   };
-  const getNotaEfectiva = (id,campo) => {
-    const val = notasEdit[id]?.[campo] ?? notas[id]?.[campo] ?? "";
-    if(val !== "") return val;
-    if(campo === "c1"){ const p=calcPromedioTPsCuat(id,"1"); return p!==null?String(p):""; }
-    if(campo === "c2"){ const p=calcPromedioTPsCuat(id,"2"); return p!==null?String(p):""; }
-    return "";
-  };
+  const getNotaEfectiva = (id,campo) => notasEdit[id]?.[campo] ?? notas[id]?.[campo] ?? "";
 
   // citaciones
   const abrirCit = (id) => {
@@ -1145,7 +1158,7 @@ function ModCiudadania() {
           const e=(tpEstados[tp.id]||{})[id]||{estado:"NE",nota:""};
           return <div key={tp.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
             <span className="text-xs">TP {tp.num} — {tp.nombre}</span>
-            <div className="flex items-center gap-2">{estadoBadge(e.estado)}<span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${e.nota?"bg-purple-50 text-purple-700 border-purple-200":"text-gray-400 border-gray-200 bg-gray-50"}`}>{e.nota||"—"}</span></div>
+            <div className="flex items-center gap-2">{estadoBadge(e.estado)}<span className="text-xs font-bold text-gray-500">{e.nota||"—"}</span></div>
           </div>;
         })}
         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-4 mb-2">Calificaciones anuales</p>
@@ -1208,16 +1221,11 @@ function ModCiudadania() {
           {ciuSync==="error"   && <span className="text-[10px] bg-red-400/30 text-red-200 rounded-full px-2 py-0.5 font-bold" title={ciuErr}>✗ Error</span>}
         </div>
       </div>
-      {/* Botón de respaldo completo */}
-      <button onClick={respaldarTodo} disabled={ciuSync==="saving"||ciuSync==="loading"}
-        className="mt-3 w-full text-xs font-black px-4 py-2 rounded-xl bg-yellow-400 hover:bg-yellow-300 text-gray-900 transition disabled:opacity-50 disabled:cursor-not-allowed">
-        💾 RESPALDAR TODO EN DRIVE
-      </button>
     </div>
 
     {/* Tabs internos */}
     <div className="flex gap-2 flex-wrap">
-      {[{id:"asistencia",icon:"📅",label:"Asistencia"},{id:"tps",icon:"📝",label:"TPs"},{id:"notas",icon:"🔢",label:"Notas"},{id:"informe",icon:"📊",label:"Informe"}].map(({id,icon,label})=>
+      {[{id:"asistencia",icon:"📅",label:"Asistencia"},{id:"tps",icon:"📝",label:"TPs"},{id:"notas",icon:"🔢",label:"Notas"},{id:"informe",icon:"📊",label:"Informe"},{id:"alumnos",icon:"👥",label:"Alumnos"}].map(({id,icon,label})=>
         <button key={id} onClick={()=>setTabCiu(id)} className={tabBtnCls(id)}>{icon} {label}</button>
       )}
     </div>
@@ -1264,6 +1272,15 @@ function ModCiudadania() {
           </tbody>
         </table>
       </div>
+      <div className="flex items-center justify-end gap-3 mt-3">
+        {syncAsist==="saving" && <span className="text-[10px] text-gray-400"><span className="spin inline-block">↻</span> Guardando...</span>}
+        {syncAsist==="ok"     && <span className="text-[10px] text-green-600 font-bold">✓ Guardado en Drive</span>}
+        {syncAsist==="error"  && <span className="text-[10px] text-red-500 font-bold">✗ Error al guardar</span>}
+        <button onClick={()=>driveGuardarAsist(asistencias)} disabled={syncAsist==="saving"}
+          className={`text-xs font-bold px-4 py-2 rounded-xl transition ${syncAsist==="saving"?"bg-gray-200 text-gray-400 cursor-not-allowed":"bg-indigo-600 hover:bg-indigo-700 text-white"}`}>
+          💾 Guardar en Drive
+        </button>
+      </div>
     </Card>}
 
     {/* ── TAB TPs ── */}
@@ -1273,7 +1290,7 @@ function ModCiudadania() {
         <button onClick={()=>{setTpNum(tps.length+1+"");setTpNom("");setTpFec("");setTpGrup("no");setModalTP(true);}} className="text-xs bg-indigo-600 text-white font-bold px-3 py-1.5 rounded-lg">+ Nuevo TP</button>
       </div>
       {tps.length>0&&<div className="flex gap-1 flex-wrap mb-3">
-        {tps.map(t=><button key={t.id} onClick={()=>setSelTP(t.id)} className={`text-[10px] font-bold px-2 py-1 rounded-full border transition ${selTP===t.id?"bg-purple-600 text-white border-purple-600":"bg-purple-50 text-purple-700 border-purple-200"}`}>TP {t.num} — {t.nombre} <span className="opacity-70">C{t.cuatrimestre||"1"}</span></button>)}
+        {tps.map(t=><button key={t.id} onClick={()=>setSelTP(t.id)} className={`text-[10px] font-bold px-2 py-1 rounded-full border transition ${selTP===t.id?"bg-purple-600 text-white border-purple-600":"bg-purple-50 text-purple-700 border-purple-200"}`}>TP {t.num} — {t.nombre}</button>)}
       </div>}
       <select value={selTP} onChange={e=>setSelTP(e.target.value)} className={`${iCls} mb-3`}>
         <option value="">— Seleccionar TP —</option>
@@ -1285,7 +1302,7 @@ function ModCiudadania() {
             <th className="text-left py-2 px-1 text-gray-400 font-bold w-6">#</th>
             <th className="text-left py-2 px-1 text-gray-400 font-bold">Apellido y nombre</th>
             <th className="text-center py-2 px-1 text-gray-400 font-bold w-32">Estado</th>
-            <th className="text-center py-2 px-1 text-gray-400 font-bold w-16">Calificación</th>
+            <th className="text-center py-2 px-1 text-gray-400 font-bold w-16">Nota</th>
             <th className="text-center py-2 px-1 text-gray-400 font-bold w-10">Ver</th>
           </tr></thead>
           <tbody>
@@ -1304,11 +1321,9 @@ function ModCiudadania() {
                   </select>
                 </td>
                 <td className="py-2 px-1 text-center">
-                  <select value={e.nota||""} onChange={ev=>setTPEstado(selTP,a.id,"nota",ev.target.value)}
-                    className="w-14 text-center border border-gray-200 rounded-lg px-1 py-1 text-[10px] bg-white">
-                    <option value="">—</option>
-                    {NOTAS_TP.map(n=><option key={n} value={n}>{n}</option>)}
-                  </select>
+                  <input type="number" min="1" max="10" value={e.nota||""} placeholder="—"
+                    onChange={ev=>setTPEstado(selTP,a.id,"nota",ev.target.value)}
+                    className="w-12 text-center border border-gray-200 rounded-lg px-1 py-1 text-[10px] bg-white"/>
                 </td>
                 <td className="py-2 px-1 text-center">
                   <button onClick={()=>setModalAlumno(a.id)} className="text-gray-300 hover:text-indigo-500 text-sm">👁</button>
@@ -1318,55 +1333,16 @@ function ModCiudadania() {
           </tbody>
         </table>
       </div>
-    </Card>}
-
-    {/* ── PROMEDIO TPs POR CUATRIMESTRE ── */}
-    {tabCiu==="tps" && tps.length>0 && <Card>
-      <p className="text-[10px] font-black text-purple-600 uppercase tracking-widest mb-1">📊 Promedio de TPs por cuatrimestre</p>
-      <p className="text-[10px] text-gray-400 mb-3">Calculado automáticamente a partir de las notas cargadas. Podés editarlo manualmente: el valor que ingreses quedará fijo (🔒) y no se actualizará con nuevas notas.</p>
-      <div className="overflow-x-auto">
-        <table className="w-full text-xs">
-          <thead><tr className="border-b border-gray-100">
-            <th className="text-left py-1.5 px-1 text-gray-400 font-bold w-6">#</th>
-            <th className="text-left py-1.5 px-1 text-gray-400 font-bold">Alumno/a</th>
-            <th className="text-center py-1.5 px-1 text-gray-400 font-bold w-24">Prom. 1° Cuat.<br/><span className="font-normal text-[9px]">TPs 1° C.</span></th>
-            <th className="text-center py-1.5 px-1 text-gray-400 font-bold w-24">Prom. 2° Cuat.<br/><span className="font-normal text-[9px]">TPs 2° C.</span></th>
-          </tr></thead>
-          <tbody>
-            {ALUMNOS_CIU.map(a=>{
-              const p1=calcPromedioTPsCuat(a.id,"1");
-              const p2=calcPromedioTPsCuat(a.id,"2");
-              const editKey1=`${a.id}_c1`; const editKey2=`${a.id}_c2`;
-              const hasEdit1=promedioEdit[editKey1]!==undefined;
-              const hasEdit2=promedioEdit[editKey2]!==undefined;
-              const v1=getPromTP(a.id,"1"); const v2=getPromTP(a.id,"2");
-              return <tr key={a.id} className="border-b border-gray-50 hover:bg-gray-50">
-                <td className="py-1.5 px-1 text-gray-300">{a.id}</td>
-                <td className="py-1.5 px-1 font-medium">{ncCiu(a)}</td>
-                <td className="py-1.5 px-1 text-center">
-                  <div className="flex items-center justify-center gap-1">
-                    {hasEdit1 && <span title="Nota fijada manualmente" className="text-[9px] text-purple-500">🔒</span>}
-                    <input type="text" maxLength={4} value={v1} onChange={ev=>setPromTP(a.id,"1",ev.target.value)} placeholder={p1!==null?String(p1):"—"}
-                      className={`w-14 text-center border rounded px-1 py-0.5 text-[10px] ${hasEdit1?"border-purple-300 bg-purple-50 font-bold":"border-gray-200 bg-white text-gray-500"}`}/>
-                    {hasEdit1 && <button title="Restablecer automático" onClick={()=>setPromEdit(prev=>{const n={...prev};delete n[editKey1];return n;})} className="text-[9px] text-gray-300 hover:text-red-400">↩</button>}
-                  </div>
-                </td>
-                <td className="py-1.5 px-1 text-center">
-                  <div className="flex items-center justify-center gap-1">
-                    {hasEdit2 && <span title="Nota fijada manualmente" className="text-[9px] text-purple-500">🔒</span>}
-                    <input type="text" maxLength={4} value={v2} onChange={ev=>setPromTP(a.id,"2",ev.target.value)} placeholder={p2!==null?String(p2):"—"}
-                      className={`w-14 text-center border rounded px-1 py-0.5 text-[10px] ${hasEdit2?"border-purple-300 bg-purple-50 font-bold":"border-gray-200 bg-white text-gray-500"}`}/>
-                    {hasEdit2 && <button title="Restablecer automático" onClick={()=>setPromEdit(prev=>{const n={...prev};delete n[editKey2];return n;})} className="text-[9px] text-gray-300 hover:text-red-400">↩</button>}
-                  </div>
-                </td>
-              </tr>;
-            })}
-          </tbody>
-        </table>
+      <div className="flex items-center justify-end gap-3 mt-3">
+        {syncTPs==="saving" && <span className="text-[10px] text-gray-400"><span className="spin inline-block">↻</span> Guardando...</span>}
+        {syncTPs==="ok"     && <span className="text-[10px] text-green-600 font-bold">✓ Guardado en Drive</span>}
+        {syncTPs==="error"  && <span className="text-[10px] text-red-500 font-bold">✗ Error al guardar</span>}
+        <button onClick={()=>driveGuardarTPs(tps,tpEstados)} disabled={syncTPs==="saving"}
+          className={`text-xs font-bold px-4 py-2 rounded-xl transition ${syncTPs==="saving"?"bg-gray-200 text-gray-400 cursor-not-allowed":"bg-indigo-600 hover:bg-indigo-700 text-white"}`}>
+          💾 Guardar en Drive
+        </button>
       </div>
     </Card>}
-
-    {/* ── TAB NOTAS ── */}
     {tabCiu==="notas" && (() => {
       const BIM_SEL = ({id, campo}) => (
         <select value={getNotaEfectiva(id,campo)||""} onChange={ev=>setNotaEdit(id,campo,ev.target.value)}
@@ -1377,22 +1353,11 @@ function ModCiudadania() {
           <option value="TED">TED</option>
         </select>
       );
-      const NUM_SEL = ({id, campo, placeholder="—"}) => {
-        const esCuat = campo==="c1"||campo==="c2";
-        const cuatNum = campo==="c1"?"1":"2";
-        const tieneEdicion = !!(notasEdit[id]?.[campo] ?? notas[id]?.[campo]);
-        const promAuto = esCuat ? calcPromedioTPsCuat(id, cuatNum) : null;
-        const esAutomatico = esCuat && !tieneEdicion && promAuto!==null;
-        return (
-          <div className="flex flex-col items-center gap-0.5">
-            <input type="number" min="1" max="10" value={getNotaEfectiva(id,campo)||""} placeholder={placeholder}
-              onChange={ev=>setNotaEdit(id,campo,ev.target.value)}
-              title={esAutomatico?"Promedio automático de TPs — editalo para fijar tu nota":"Nota fijada por vos"}
-              className={`w-12 text-center border rounded px-1 py-0.5 text-[10px] ${esAutomatico?"border-purple-300 bg-purple-50 text-purple-700":"border-gray-200 bg-white"}`}/>
-            {esCuat && <span className={`text-[8px] font-bold leading-none ${esAutomatico?"text-purple-400":"text-indigo-500"}`}>{esAutomatico?"≈ TPs":"✎ fija"}</span>}
-          </div>
-        );
-      };
+      const NUM_SEL = ({id, campo, placeholder="—"}) => (
+        <input type="number" min="1" max="10" value={getNotaEfectiva(id,campo)||""} placeholder={placeholder}
+          onChange={ev=>setNotaEdit(id,campo,ev.target.value)}
+          className="w-10 text-center border border-gray-200 rounded px-1 py-0.5 text-[10px] bg-white"/>
+      );
       const finalBadge = (id) => {
         const f = calcularFinal(id);
         const cls = {green:"bg-green-100 text-green-700 border-green-200", amber:"bg-amber-100 text-amber-700 border-amber-200", red:"bg-red-100 text-red-700 border-red-200", slate:"bg-gray-100 text-gray-500 border-gray-200"};
@@ -1571,12 +1536,62 @@ function ModCiudadania() {
       <pre className="bg-gray-50 border border-gray-100 rounded-xl p-4 text-xs leading-relaxed font-mono whitespace-pre-wrap max-h-72 overflow-y-auto text-gray-700">{informe}</pre>
     </Card>}
 
+    {/* ── TAB ALUMNOS ── */}
+    {tabCiu==="alumnos" && <Card>
+      <div className="flex justify-between items-center mb-3">
+        <div>
+          <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Listado del curso</p>
+          <p className="text-[11px] text-gray-400">{alumnosCiu.length} alumnos/as</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {syncAlumnos==="saving" && <span className="text-[10px] text-gray-400"><span className="spin inline-block">↻</span></span>}
+          {syncAlumnos==="ok"     && <span className="text-[10px] text-green-600 font-bold">✓ Drive</span>}
+          {syncAlumnos==="error"  && <span className="text-[10px] text-red-500 font-bold">✗ Error</span>}
+          <button onClick={()=>{setEditAp("");setEditNom("");setModalNuevoAlumno(true);}}
+            className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3 py-1.5 rounded-lg">+ Agregar</button>
+        </div>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead><tr className="border-b border-gray-100">
+            <th className="text-left py-2 px-1 text-gray-400 font-bold w-6">#</th>
+            <th className="text-left py-2 px-1 text-gray-400 font-bold">Apellido</th>
+            <th className="text-left py-2 px-1 text-gray-400 font-bold">Nombre</th>
+            <th className="text-center py-2 px-1 text-gray-400 font-bold w-20">Acciones</th>
+          </tr></thead>
+          <tbody>
+            {[...alumnosCiu].sort((a,b)=>a.ap.localeCompare(b.ap)).map(a=>(
+              <tr key={a.id} className="border-b border-gray-50 hover:bg-gray-50">
+                <td className="py-2 px-1 text-gray-300">{a.id}</td>
+                <td className="py-2 px-1 font-medium">{a.ap}</td>
+                <td className="py-2 px-1">{a.nom}</td>
+                <td className="py-2 px-1 text-center">
+                  <div className="flex gap-1 justify-center">
+                    <button onClick={()=>{setEditAp(a.ap);setEditNom(a.nom);setModalEditAlumno(a);}}
+                      className="text-[10px] px-2 py-0.5 rounded border border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-bold">✏️</button>
+                    <button onClick={()=>eliminarAlumno(a.id)}
+                      className="text-[10px] px-2 py-0.5 rounded border border-red-200 text-red-500 hover:bg-red-50 font-bold">🗑</button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Card>}
+
     {/* ── MODAL DETALLE ALUMNO ── */}
     {modalAlumno && <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={()=>setModalAlumno(null)}>
       <div className="bg-white rounded-2xl border border-gray-100 w-full max-w-md max-h-[90vh] overflow-y-auto p-5" onClick={e=>e.stopPropagation()}>
         <div className="flex justify-between items-center mb-4">
           <h3 className="font-bold text-sm">Detalle del alumno</h3>
-          <button onClick={()=>setModalAlumno(null)} className="text-gray-300 hover:text-gray-600 text-lg leading-none">×</button>
+          <div className="flex items-center gap-2">
+            <button onClick={()=>{
+              const a=ALUMNOS_CIU.find(x=>x.id===modalAlumno);
+              setEditAp(a.ap); setEditNom(a.nom); setModalEditAlumno(a); setModalAlumno(null);
+            }} className="text-[10px] px-2 py-1 rounded-lg border border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-bold">✏️ Editar</button>
+            <button onClick={()=>setModalAlumno(null)} className="text-gray-300 hover:text-gray-600 text-lg leading-none">×</button>
+          </div>
         </div>
         {detalleAlumno(modalAlumno)}
       </div>
@@ -1596,14 +1611,6 @@ function ModCiudadania() {
             <Inp label="Fecha de entrega" type="date" value={tpFec} onChange={e=>setTpFec(e.target.value)}/>
             <Sel label="¿Es grupal?" value={tpGrup} onChange={e=>setTpGrup(e.target.value)} opts={["no","si"]}/>
           </div>
-          <Lbl label="Cuatrimestre">
-            <div className="flex gap-2">
-              {["1","2"].map(c=><button key={c} type="button" onClick={()=>setTpCuat(c)}
-                className={`flex-1 py-2 text-xs font-bold rounded-xl border transition ${tpCuat===c?"bg-purple-600 text-white border-purple-600":"bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}>
-                {c}° Cuatrimestre
-              </button>)}
-            </div>
-          </Lbl>
           <div className="text-right pt-1">
             <button onClick={crearTP} className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-xl transition">Crear TP</button>
           </div>
@@ -1635,6 +1642,47 @@ function ModCiudadania() {
           <Txa label="Observaciones (opcional)" value={citObs} onChange={e=>setCitObs(e.target.value)} rows={2} placeholder="Notas adicionales..."/>
           <div className="text-right">
             <button onClick={guardarCitacion} className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-xl transition">Registrar citación</button>
+          </div>
+        </div>
+      </div>
+    </div>}
+
+    {/* ── MODAL NUEVO ALUMNO ── */}
+    {modalNuevoAlumno && <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={()=>setModalNuevoAlumno(false)}>
+      <div className="bg-white rounded-2xl border border-gray-100 w-full max-w-sm p-5" onClick={e=>e.stopPropagation()}>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="font-bold text-sm">Agregar alumno/a</h3>
+          <button onClick={()=>setModalNuevoAlumno(false)} className="text-gray-300 hover:text-gray-600 text-lg leading-none">×</button>
+        </div>
+        <div className="space-y-3">
+          <Inp label="Apellido" value={editAp} onChange={e=>setEditAp(e.target.value)} placeholder="Ej: García"/>
+          <Inp label="Nombre" value={editNom} onChange={e=>setEditNom(e.target.value)} placeholder="Ej: Lucía Valentina"/>
+          <div className="text-right pt-1">
+            <button onClick={agregarAlumno} className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-xl transition">Agregar</button>
+          </div>
+        </div>
+      </div>
+    </div>}
+
+    {/* ── MODAL EDITAR ALUMNO ── */}
+    {modalEditAlumno && <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={()=>setModalEditAlumno(null)}>
+      <div className="bg-white rounded-2xl border border-gray-100 w-full max-w-sm p-5" onClick={e=>e.stopPropagation()}>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="font-bold text-sm">Editar alumno/a</h3>
+          <button onClick={()=>setModalEditAlumno(null)} className="text-gray-300 hover:text-gray-600 text-lg leading-none">×</button>
+        </div>
+        <div className="space-y-3">
+          <Inp label="Apellido" value={editAp} onChange={e=>setEditAp(e.target.value)}/>
+          <Inp label="Nombre" value={editNom} onChange={e=>setEditNom(e.target.value)}/>
+          <div className="flex justify-between items-center pt-1">
+            <button onClick={()=>eliminarAlumno(modalEditAlumno.id)}
+              className="text-xs border border-red-200 text-red-500 hover:bg-red-50 font-bold px-3 py-2 rounded-xl transition">
+              🗑 Eliminar
+            </button>
+            <button onClick={editarAlumno}
+              className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-xl transition">
+              Guardar cambios
+            </button>
           </div>
         </div>
       </div>
