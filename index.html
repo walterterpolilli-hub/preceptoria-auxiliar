@@ -1006,6 +1006,22 @@ function ModCiudadania() {
       else { setCiuSync("error"); setCiuErr(res.error||"Error desconocido"); }
     } catch(err){ setCiuSync("error"); setCiuErr(err.toString()); }
   };
+
+  const respaldarTodo = async () => {
+    setCiuSync("saving"); setCiuErr("");
+    try {
+      const merged = {...notas, ...notasEdit};
+      const [rNotas, rAsist, rTPs, rCit] = await Promise.all([
+        api({action:"saveCiudadania",     data:{notas: merged}}),
+        api({action:"saveCiuAsistencias", data:{asistencias}}),
+        api({action:"saveCiuTPs",         data:{tps, tpEstados}}),
+        api({action:"saveCiuCitaciones",  data:{citaciones}})
+      ]);
+      const ok = rNotas.ok && rAsist.ok && rTPs.ok && rCit.ok;
+      if(ok){ setCiuSync("ok"); alert("✅ Respaldo completo guardado en Drive.\nYa podés actualizar la app con seguridad."); }
+      else { setCiuSync("error"); setCiuErr("Algún módulo falló al guardar"); }
+    } catch(err){ setCiuSync("error"); setCiuErr(err.toString()); }
+  };
   const setNotaEdit = (id,campo,val) => {
     setNotasEdit(prev=>({...prev, [id]:{...(prev[id]||notas[id]||{}), [campo]:val}}));
   };
@@ -1192,6 +1208,11 @@ function ModCiudadania() {
           {ciuSync==="error"   && <span className="text-[10px] bg-red-400/30 text-red-200 rounded-full px-2 py-0.5 font-bold" title={ciuErr}>✗ Error</span>}
         </div>
       </div>
+      {/* Botón de respaldo completo */}
+      <button onClick={respaldarTodo} disabled={ciuSync==="saving"||ciuSync==="loading"}
+        className="mt-3 w-full text-xs font-black px-4 py-2 rounded-xl bg-yellow-400 hover:bg-yellow-300 text-gray-900 transition disabled:opacity-50 disabled:cursor-not-allowed">
+        💾 RESPALDAR TODO EN DRIVE
+      </button>
     </div>
 
     {/* Tabs internos */}
