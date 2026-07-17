@@ -848,6 +848,8 @@ function ModCiudadania() {
   const [tpEstados, setTpEst]   = useState(()=>CIU_LS.get("tpest",{}));
   const [notas, setNotas]       = useState(()=>CIU_LS.get("notas",{}));
   const [citaciones, setCit]    = useState(()=>CIU_LS.get("cit",{}));
+  const [obsAlumno, setObsAlum] = useState(()=>CIU_LS.get("obsalu",{}));
+  const [obsAlumnoEdit, setObsAlumEdit] = useState({});
   const [fechaAsist, setFechaA] = useState(hoyISO());
   const [filtroAsist, setFilA]  = useState("");
   const [buscarAsist, setBusA]  = useState("");
@@ -875,6 +877,7 @@ function ModCiudadania() {
   const [syncAsist, setSyncAsist] = useState("idle"); // idle|saving|ok|error
   const [syncTPs,   setSyncTPs]   = useState("idle");
   const [syncCit,   setSyncCit]   = useState("idle");
+  const [syncObs,   setSyncObs]   = useState("idle"); // observaciones por alumno
   // gestión alumnos
   const [modalEditAlumno, setModalEditAlumno] = useState(null); // alumno a editar
   const [modalNuevoAlumno, setModalNuevoAlumno] = useState(false);
@@ -893,8 +896,9 @@ function ModCiudadania() {
       api({action:"getCiuAsistencias"}),
       api({action:"getCiuTPs"}),
       api({action:"getCiuCitaciones"}),
-      api({action:"getCiuAlumnos"})
-    ]).then(([rNotas, rAsist, rTPs, rCit, rAlumnos])=>{
+      api({action:"getCiuAlumnos"}),
+      api({action:"getCiuObs"})
+    ]).then(([rNotas, rAsist, rTPs, rCit, rAlumnos, rObs])=>{
       if(rNotas.ok && rNotas.notas && Object.keys(rNotas.notas).length>0){
         setNotas(rNotas.notas); CIU_LS.set("notas", rNotas.notas);
       }
@@ -914,6 +918,9 @@ function ModCiudadania() {
         // Ciu_Alumnos vacía — guardar la lista actual en Drive automáticamente
         const listaActual = CIU_LS.get("alumnos", ALUMNOS_CIU_DEFAULT);
         api({action:"saveCiuAlumnos", data:{alumnos: listaActual}});
+      }
+      if(rObs.ok && rObs.obs && Object.keys(rObs.obs).length>0){
+        setObsAlum(rObs.obs); CIU_LS.set("obsalu", rObs.obs);
       }
       setCiuSync("ok");
     }).catch(()=>setCiuSync("idle"));
@@ -961,12 +968,22 @@ function ModCiudadania() {
     try { const r=await api({action:"saveCiuCitaciones",data:{citaciones:datos}}); setSyncCit(r.ok?"ok":"error"); }
     catch(e){ setSyncCit("error"); }
   };
+  const driveGuardarObs = async (datos) => {
+    setSyncObs("saving");
+    try { const r=await api({action:"saveCiuObs",data:{obs:datos}}); setSyncObs(r.ok?"ok":"error"); }
+    catch(e){ setSyncObs("error"); }
+  };
 
   // persist local + Drive
   const saveAsist = (v) => { setAsist(v); CIU_LS.set("asist",v); driveGuardarAsist(v); };
   const saveTps   = (t,e) => { setTps(t); setTpEst(e); CIU_LS.set("tps",t); CIU_LS.set("tpest",e); driveGuardarTPs(t,e); };
   const saveNotas = (v)   => { setNotas(v); CIU_LS.set("notas",v); };
   const saveCit   = (v)   => { setCit(v); CIU_LS.set("cit",v); driveGuardarCit(v); };
+  const saveObsAlumno = (id, texto) => {
+    const nuevo = {...obsAlumno, [id]: texto};
+    setObsAlum(nuevo); CIU_LS.set("obsalu", nuevo); driveGuardarObs(nuevo);
+  };
+  const getObsEfectiva = (id) => obsAlumnoEdit[id] ?? obsAlumno[id] ?? "";
 
   // helpers asistencia
   const getAsist = (f,id) => (asistencias[f]||{})[id]||"";
@@ -1128,6 +1145,11 @@ function ModCiudadania() {
         txt+=`\nCitaciones a la familia (${cits.length}):\n`;
         cits.forEach(c=>{txt+=`  · ${fmtFecha(c.fecha)} — ${c.motivos.join(", ")}${c.obs?" — "+c.obs:""}\n`;});
       }
+
+      const obsGen = obsAlumno[a.id];
+      if(obsGen && obsGen.trim()){
+        txt+=`\nObservaciones:\n  ${obsGen.trim()}\n`;
+      }
     }
     setInforme(txt);
   };
@@ -1181,6 +1203,11 @@ function ModCiudadania() {
       html+=`<h2>Citaciones a la familia</h2><table><thead><tr><th>Fecha</th><th>Motivo/s</th><th>Observaciones</th></tr></thead><tbody>`+
         cits.map(c=>`<tr><td>${fmtFecha(c.fecha)}</td><td>${c.motivos.join(", ")}</td><td>${c.obs||"—"}</td></tr>`).join("")+
         "</tbody></table>";
+    }
+
+    const obsGen = obsAlumno[a.id];
+    if(obsGen && obsGen.trim()){
+      html+=`<h2>Observaciones</h2><div class="campo"><div class="valor" style="min-height:40px">${obsGen.trim().replace(/\n/g,"<br>")}</div></div>`;
     }
 
     printDoc(html, `Informe — ${ncCiu(a)}`);
@@ -1276,6 +1303,19 @@ function ModCiudadania() {
             <span className="text-lg font-black">{f.label}</span>
           </div>;
         })()}
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Observaciones generales</p>
+        <div className="mb-4">
+          <textarea rows={3} value={getObsEfectiva(id)}
+            placeholder="Ej: mejoró mucho la participación en clase, avisar a la familia por inasistencias..."
+            onChange={ev=>setObsAlumEdit(prev=>({...prev,[id]:ev.target.value}))}
+            onBlur={ev=>saveObsAlumno(id, ev.target.value)}
+            className="w-full text-xs border border-gray-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition"/>
+          <div className="flex justify-end mt-1">
+            {syncObs==="saving" && <span className="text-[10px] text-gray-400"><span className="spin inline-block">↻</span> Guardando...</span>}
+            {syncObs==="ok"     && <span className="text-[10px] text-green-600 font-bold">✓ Guardado en Drive</span>}
+            {syncObs==="error"  && <span className="text-[10px] text-red-500 font-bold">✗ Error al guardar</span>}
+          </div>
+        </div>
         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Citaciones a la familia</p>
         {cits.length===0?<div className="flex justify-between items-center"><span className="text-xs text-gray-400">Sin citaciones</span><button onClick={()=>{setModalAlumno(null);abrirCit(id);}} className="text-xs bg-amber-50 border border-amber-200 text-amber-700 px-3 py-1 rounded-lg font-bold">+ Registrar</button></div>:
           <>{cits.map((c,i)=><div key={i} className="bg-amber-50 border border-amber-100 rounded-xl p-3 mb-2">
