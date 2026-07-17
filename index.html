@@ -852,6 +852,7 @@ function ModCiudadania() {
   const [filtroAsist, setFilA]  = useState("");
   const [buscarAsist, setBusA]  = useState("");
   const [selTP, setSelTP]       = useState("");
+  const [selAlumnoInf, setSelAlumnoInf] = useState("");
   const [informe, setInforme]   = useState("Seleccioná un tipo de informe arriba.");
   // modales
   const [modalAlumno, setModalAlumno] = useState(null);
@@ -1087,6 +1088,46 @@ function ModCiudadania() {
         txt+=`\n${ncCiu(a)} (${cits.length} citación/es):\n`;
         cits.forEach(c=>{txt+=`  · ${fmtFecha(c.fecha)} — ${c.motivos.join(", ")}${c.obs?" — "+c.obs:""}\n`;});
       });
+    } else if(tipo==="alumno"){
+      if(!selAlumnoInf){setInforme("Seleccioná un alumno para generar su informe.");return;}
+      const a=ALUMNOS_CIU.find(x=>String(x.id)===String(selAlumnoInf));
+      if(!a){setInforme("Alumno no encontrado.");return;}
+      txt=`INFORME INDIVIDUAL\nConstrucción de la Ciudadanía · 2° 3° Tarde\nProf. Walter Terpolilli · ${fecha}\n${"═".repeat(52)}\n\n`;
+      txt+=`Alumno/a: ${ncCiu(a)} (N° ${a.id})\n\n`;
+
+      if(!tps.length){
+        txt+="No hay TPs creados aún.\n";
+      } else {
+        const debe = tps.filter(tp=>{const e=(tpEstados[tp.id]||{})[a.id]; return !e||e.estado==="NE";});
+        const entregados = tps.filter(tp=>{const e=(tpEstados[tp.id]||{})[a.id]; return e&&e.estado!=="NE";});
+
+        if(debe.length){
+          txt+=`${ncCiu(a)} debe entregar:\n`;
+          debe.forEach(tp=>{txt+=`  · TP ${tp.num} — ${tp.nombre}${tp.fecha?" (vencía "+fmtFecha(tp.fecha)+")":""}\n`;});
+          txt+="\n";
+        } else {
+          txt+=`${ncCiu(a)} no tiene TPs pendientes de entrega.\n\n`;
+        }
+
+        if(entregados.length){
+          txt+=`Y en los trabajos entregados tiene:\n`;
+          entregados.forEach(tp=>{
+            const e=(tpEstados[tp.id]||{})[a.id];
+            const estadoTxt = e.estado==="FT" ? " (fuera de término)" : "";
+            txt+=`  · TP ${tp.num} — ${tp.nombre}${estadoTxt}: nota ${e.nota||"—"}\n`;
+          });
+          txt+="\n";
+        }
+      }
+
+      const aus=cntAus(a.id), pres=cntPres(a.id), just=cntJust(a.id);
+      txt+=`Asistencia: ${pres} presencias, ${aus} ausencias, ${just} justificadas.\n`;
+
+      const cits=citaciones[a.id]||[];
+      if(cits.length){
+        txt+=`\nCitaciones a la familia (${cits.length}):\n`;
+        cits.forEach(c=>{txt+=`  · ${fmtFecha(c.fecha)} — ${c.motivos.join(", ")}${c.obs?" — "+c.obs:""}\n`;});
+      }
     }
     setInforme(txt);
   };
@@ -1104,6 +1145,45 @@ function ModCiudadania() {
     });
     if(!html.includes("<li>"))html+="<p style='color:#777'>Todos los alumnos entregaron todos los TPs.</p>";
     printDoc(`<div class="hdr"><h1>Colegio Fragata Libertad</h1><div class="sub">SPA — Ciudadanía · TPs no entregados — 2° 3° Tarde</div></div>${html}`, "Informe TPs Ciudadanía");
+  };
+
+  const imprimirInformeAlumno = (id) => {
+    const a=ALUMNOS_CIU.find(x=>String(x.id)===String(id));
+    if(!a){alert("Seleccioná un alumno primero.");return;}
+    const fecha=new Date().toLocaleDateString("es-AR");
+    const debe = tps.filter(tp=>{const e=(tpEstados[tp.id]||{})[a.id]; return !e||e.estado==="NE";});
+    const entregados = tps.filter(tp=>{const e=(tpEstados[tp.id]||{})[a.id]; return e&&e.estado!=="NE";});
+    const aus=cntAus(a.id), pres=cntPres(a.id), just=cntJust(a.id);
+    const cits=citaciones[a.id]||[];
+
+    let html=`<div class="hdr"><h1>Colegio Fragata Libertad</h1><div class="sub">SPA — Ciudadanía · Informe individual — 2° 3° Tarde — ${fecha}</div></div>`;
+    html+=`<div class="campo"><label>Alumno/a</label><div class="valor">${ncCiu(a)} (N° ${a.id})</div></div>`;
+
+    html+=`<h2>Trabajos prácticos pendientes de entrega</h2>`;
+    if(!tps.length) html+="<p style='color:#777'>No hay TPs creados aún.</p>";
+    else if(!debe.length) html+="<p style='color:#777'>No tiene TPs pendientes de entrega.</p>";
+    else html+="<table><thead><tr><th>TP</th><th>Tema</th><th>Fecha límite</th></tr></thead><tbody>"+
+      debe.map(tp=>`<tr><td>TP ${tp.num}</td><td>${tp.nombre}</td><td>${tp.fecha?fmtFecha(tp.fecha):"—"}</td></tr>`).join("")+
+      "</tbody></table>";
+
+    html+=`<h2>Trabajos prácticos entregados y notas</h2>`;
+    if(!entregados.length) html+="<p style='color:#777'>Aún no registra entregas.</p>";
+    else html+="<table><thead><tr><th>TP</th><th>Tema</th><th>Estado</th><th>Nota</th></tr></thead><tbody>"+
+      entregados.map(tp=>{
+        const e=(tpEstados[tp.id]||{})[a.id];
+        return `<tr><td>TP ${tp.num}</td><td>${tp.nombre}</td><td>${e.estado==="FT"?"Fuera de término":"Entregado"}</td><td>${e.nota||"—"}</td></tr>`;
+      }).join("")+
+      "</tbody></table>";
+
+    html+=`<h2>Asistencia</h2><div class="campo"><div class="valor">${pres} presencias · ${aus} ausencias · ${just} justificadas</div></div>`;
+
+    if(cits.length){
+      html+=`<h2>Citaciones a la familia</h2><table><thead><tr><th>Fecha</th><th>Motivo/s</th><th>Observaciones</th></tr></thead><tbody>`+
+        cits.map(c=>`<tr><td>${fmtFecha(c.fecha)}</td><td>${c.motivos.join(", ")}</td><td>${c.obs||"—"}</td></tr>`).join("")+
+        "</tbody></table>";
+    }
+
+    printDoc(html, `Informe — ${ncCiu(a)}`);
   };
 
   // styles inline compartidos
@@ -1536,6 +1616,21 @@ function ModCiudadania() {
           <button key={k} onClick={()=>generarInforme(k)} className="text-xs bg-white border border-gray-200 text-gray-600 hover:bg-gray-50 font-bold px-3 py-1.5 rounded-lg transition">{l}</button>
         )}
         <button onClick={imprimirTPs} className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3 py-1.5 rounded-lg transition">🖨️ Imprimir TPs</button>
+      </div>
+      <div className="flex gap-2 flex-wrap items-center mb-3 bg-purple-50 border border-purple-100 rounded-xl p-3">
+        <span className="text-xs font-bold text-purple-700 whitespace-nowrap">📌 Informe por alumno:</span>
+        <select value={selAlumnoInf} onChange={e=>setSelAlumnoInf(e.target.value)} className={`${iCls} flex-1 min-w-[160px]`}>
+          <option value="">— Seleccionar alumno/a —</option>
+          {[...ALUMNOS_CIU].sort((x,y)=>x.ap.localeCompare(y.ap)).map(a=><option key={a.id} value={a.id}>{ncCiu(a)}</option>)}
+        </select>
+        <button onClick={()=>generarInforme("alumno")} disabled={!selAlumnoInf}
+          className={`text-xs font-bold px-3 py-1.5 rounded-lg transition ${selAlumnoInf?"bg-purple-600 hover:bg-purple-700 text-white":"bg-gray-200 text-gray-400 cursor-not-allowed"}`}>
+          Generar
+        </button>
+        <button onClick={()=>imprimirInformeAlumno(selAlumnoInf)} disabled={!selAlumnoInf}
+          className={`text-xs font-bold px-3 py-1.5 rounded-lg transition ${selAlumnoInf?"bg-white border border-purple-300 text-purple-700 hover:bg-purple-50":"bg-gray-200 text-gray-400 cursor-not-allowed border border-gray-200"}`}>
+          🖨️ PDF
+        </button>
       </div>
       <pre className="bg-gray-50 border border-gray-100 rounded-xl p-4 text-xs leading-relaxed font-mono whitespace-pre-wrap max-h-72 overflow-y-auto text-gray-700">{informe}</pre>
     </Card>}
