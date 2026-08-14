@@ -866,6 +866,7 @@ function ModCiudadania() {
   const [tpNom, setTpNom]     = useState("");
   const [tpFec, setTpFec]     = useState("");
   const [tpGrup, setTpGrup]   = useState("no");
+  const [tpEditId, setTpEditId] = useState(null); // null = creando; sino, id del TP que se está editando
   // form cit
   const [citMotivos, setCitMot]  = useState([]);
   const [citOtras, setCitOtras]  = useState("");
@@ -883,6 +884,7 @@ function ModCiudadania() {
   const [modalNuevoAlumno, setModalNuevoAlumno] = useState(false);
   const [editAp, setEditAp]   = useState("");
   const [editNom, setEditNom] = useState("");
+  const [editUsuario, setEditUsuario] = useState("");
   const [syncAlumnos, setSyncAlumnos] = useState("idle");
   // sync Drive
   const [ciuSync, setCiuSync]   = useState("idle"); // idle | loading | saving | ok | error
@@ -936,15 +938,15 @@ function ModCiudadania() {
   const agregarAlumno = () => {
     if(!editAp.trim()||!editNom.trim()){alert("Completá apellido y nombre.");return;}
     const maxId = alumnosCiu.reduce((m,a)=>Math.max(m,a.id),0);
-    const nuevo = {id:maxId+1, ap:editAp.trim(), nom:editNom.trim()};
+    const nuevo = {id:maxId+1, ap:editAp.trim(), nom:editNom.trim(), usuario:editUsuario.trim()};
     saveAlumnosCiu([...alumnosCiu, nuevo].sort((a,b)=>a.ap.localeCompare(b.ap)));
-    setModalNuevoAlumno(false); setEditAp(""); setEditNom("");
+    setModalNuevoAlumno(false); setEditAp(""); setEditNom(""); setEditUsuario("");
   };
   const editarAlumno = () => {
     if(!editAp.trim()||!editNom.trim()){alert("Completá apellido y nombre.");return;}
-    const lista = alumnosCiu.map(a=>a.id===modalEditAlumno.id?{...a,ap:editAp.trim(),nom:editNom.trim()}:a);
+    const lista = alumnosCiu.map(a=>a.id===modalEditAlumno.id?{...a,ap:editAp.trim(),nom:editNom.trim(),usuario:editUsuario.trim()}:a);
     saveAlumnosCiu(lista);
-    setModalEditAlumno(null); setEditAp(""); setEditNom("");
+    setModalEditAlumno(null); setEditAp(""); setEditNom(""); setEditUsuario("");
   };
   const eliminarAlumno = (id) => {
     if(!confirm("¿Eliminar este alumno? Sus datos de asistencia, TPs y notas se conservan pero ya no aparecerá en las listas.")) return;
@@ -995,17 +997,32 @@ function ModCiudadania() {
   const cntPres = id => Object.values(asistencias).filter(d=>d[id]==="P").length;
   const cntJust = id => Object.values(asistencias).filter(d=>d[id]==="J").length;
 
-  // crear TP
-  const crearTP = () => {
+  // crear o editar TP
+  const abrirNuevoTP = () => {
+    setTpEditId(null); setTpNum(tps.length+1+""); setTpNom(""); setTpFec(""); setTpGrup("no");
+    setModalTP(true);
+  };
+  const abrirEditarTP = (tp) => {
+    setTpEditId(tp.id); setTpNum(String(tp.num)); setTpNom(tp.nombre); setTpFec(tp.fecha||""); setTpGrup(tp.grupal?"si":"no");
+    setModalTP(true);
+  };
+  const guardarTP = () => {
     const num = parseInt(tpNum)||tps.length+1;
     const nombre = tpNom.trim()||("TP "+num);
-    const tp = {id:"tp"+Date.now(), num, nombre, fecha:tpFec, grupal:tpGrup==="si"};
-    const nuevoTps = [...tps, tp];
-    const nuevoEst = {...tpEstados, [tp.id]:{}};
-    ALUMNOS_CIU.forEach(a=>{ nuevoEst[tp.id][a.id]={estado:"NE",nota:""}; });
-    saveTps(nuevoTps, nuevoEst);
-    setSelTP(tp.id);
+    if(tpEditId){
+      // editar TP existente: se conserva el id y los estados/notas ya cargados
+      const nuevoTps = tps.map(t=>t.id===tpEditId?{...t, num, nombre, fecha:tpFec, grupal:tpGrup==="si"}:t);
+      saveTps(nuevoTps, tpEstados);
+    } else {
+      const tp = {id:"tp"+Date.now(), num, nombre, fecha:tpFec, grupal:tpGrup==="si"};
+      const nuevoTps = [...tps, tp];
+      const nuevoEst = {...tpEstados, [tp.id]:{}};
+      ALUMNOS_CIU.forEach(a=>{ nuevoEst[tp.id][a.id]={estado:"NE",nota:""}; });
+      saveTps(nuevoTps, nuevoEst);
+      setSelTP(tp.id);
+    }
     setModalTP(false);
+    setTpEditId(null);
   };
   const setTPEstado = (tpId, alumId, campo, val) => {
     const nuevoEst = {...tpEstados, [tpId]:{...(tpEstados[tpId]||{}), [alumId]:{...(tpEstados[tpId]?.[alumId]||{estado:"NE",nota:""}), [campo]:val}}};
@@ -1411,10 +1428,13 @@ function ModCiudadania() {
     {tabCiu==="tps" && <Card>
       <div className="flex justify-between items-center mb-3">
         <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Trabajos Prácticos</p>
-        <button onClick={()=>{setTpNum(tps.length+1+"");setTpNom("");setTpFec("");setTpGrup("no");setModalTP(true);}} className="text-xs bg-indigo-600 text-white font-bold px-3 py-1.5 rounded-lg">+ Nuevo TP</button>
+        <button onClick={abrirNuevoTP} className="text-xs bg-indigo-600 text-white font-bold px-3 py-1.5 rounded-lg">+ Nuevo TP</button>
       </div>
       {tps.length>0&&<div className="flex gap-1 flex-wrap mb-3">
-        {tps.map(t=><button key={t.id} onClick={()=>setSelTP(t.id)} className={`text-[10px] font-bold px-2 py-1 rounded-full border transition ${selTP===t.id?"bg-purple-600 text-white border-purple-600":"bg-purple-50 text-purple-700 border-purple-200"}`}>TP {t.num} — {t.nombre}</button>)}
+        {tps.map(t=><span key={t.id} className={`inline-flex items-center gap-1 text-[10px] font-bold pl-2 pr-1 py-1 rounded-full border transition ${selTP===t.id?"bg-purple-600 text-white border-purple-600":"bg-purple-50 text-purple-700 border-purple-200"}`}>
+          <button onClick={()=>setSelTP(t.id)}>TP {t.num} — {t.nombre}</button>
+          <button onClick={()=>abrirEditarTP(t)} title="Editar TP" className={`px-1 rounded-full ${selTP===t.id?"hover:bg-purple-500":"hover:bg-purple-200"}`}>✏️</button>
+        </span>)}
       </div>}
       <select value={selTP} onChange={e=>setSelTP(e.target.value)} className={`${iCls} mb-3`}>
         <option value="">— Seleccionar TP —</option>
@@ -1696,6 +1716,7 @@ function ModCiudadania() {
             <th className="text-left py-2 px-1 text-gray-400 font-bold w-6">#</th>
             <th className="text-left py-2 px-1 text-gray-400 font-bold">Apellido</th>
             <th className="text-left py-2 px-1 text-gray-400 font-bold">Nombre</th>
+            <th className="text-left py-2 px-1 text-gray-400 font-bold">Usuario</th>
             <th className="text-center py-2 px-1 text-gray-400 font-bold w-20">Acciones</th>
           </tr></thead>
           <tbody>
@@ -1704,9 +1725,10 @@ function ModCiudadania() {
                 <td className="py-2 px-1 text-gray-300">{a.id}</td>
                 <td className="py-2 px-1 font-medium">{a.ap}</td>
                 <td className="py-2 px-1">{a.nom}</td>
+                <td className="py-2 px-1 text-gray-500">{a.usuario||"—"}</td>
                 <td className="py-2 px-1 text-center">
                   <div className="flex gap-1 justify-center">
-                    <button onClick={()=>{setEditAp(a.ap);setEditNom(a.nom);setModalEditAlumno(a);}}
+                    <button onClick={()=>{setEditAp(a.ap);setEditNom(a.nom);setEditUsuario(a.usuario||"");setModalEditAlumno(a);}}
                       className="text-[10px] px-2 py-0.5 rounded border border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-bold">✏️</button>
                     <button onClick={()=>eliminarAlumno(a.id)}
                       className="text-[10px] px-2 py-0.5 rounded border border-red-200 text-red-500 hover:bg-red-50 font-bold">🗑</button>
@@ -1727,7 +1749,7 @@ function ModCiudadania() {
           <div className="flex items-center gap-2">
             <button onClick={()=>{
               const a=ALUMNOS_CIU.find(x=>x.id===modalAlumno);
-              setEditAp(a.ap); setEditNom(a.nom); setModalEditAlumno(a); setModalAlumno(null);
+              setEditAp(a.ap); setEditNom(a.nom); setEditUsuario(a.usuario||""); setModalEditAlumno(a); setModalAlumno(null);
             }} className="text-[10px] px-2 py-1 rounded-lg border border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-bold">✏️ Editar</button>
             <button onClick={()=>setModalAlumno(null)} className="text-gray-300 hover:text-gray-600 text-lg leading-none">×</button>
           </div>
@@ -1737,11 +1759,11 @@ function ModCiudadania() {
     </div>}
 
     {/* ── MODAL NUEVO TP ── */}
-    {modalTP && <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={()=>setModalTP(false)}>
+    {modalTP && <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={()=>{setModalTP(false);setTpEditId(null);}}>
       <div className="bg-white rounded-2xl border border-gray-100 w-full max-w-sm p-5" onClick={e=>e.stopPropagation()}>
         <div className="flex justify-between items-center mb-4">
-          <h3 className="font-bold text-sm">Nuevo Trabajo Práctico</h3>
-          <button onClick={()=>setModalTP(false)} className="text-gray-300 hover:text-gray-600 text-lg leading-none">×</button>
+          <h3 className="font-bold text-sm">{tpEditId?"Editar Trabajo Práctico":"Nuevo Trabajo Práctico"}</h3>
+          <button onClick={()=>{setModalTP(false);setTpEditId(null);}} className="text-gray-300 hover:text-gray-600 text-lg leading-none">×</button>
         </div>
         <div className="space-y-3">
           <Inp label="Número de TP" type="number" min="1" value={tpNum} onChange={e=>setTpNum(e.target.value)} placeholder="1"/>
@@ -1751,7 +1773,7 @@ function ModCiudadania() {
             <Sel label="¿Es grupal?" value={tpGrup} onChange={e=>setTpGrup(e.target.value)} opts={["no","si"]}/>
           </div>
           <div className="text-right pt-1">
-            <button onClick={crearTP} className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-xl transition">Crear TP</button>
+            <button onClick={guardarTP} className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-xl transition">{tpEditId?"Guardar cambios":"Crear TP"}</button>
           </div>
         </div>
       </div>
@@ -1796,6 +1818,7 @@ function ModCiudadania() {
         <div className="space-y-3">
           <Inp label="Apellido" value={editAp} onChange={e=>setEditAp(e.target.value)} placeholder="Ej: García"/>
           <Inp label="Nombre" value={editNom} onChange={e=>setEditNom(e.target.value)} placeholder="Ej: Lucía Valentina"/>
+          <Inp label="Usuario (para el portal del alumno)" value={editUsuario} onChange={e=>setEditUsuario(e.target.value)} placeholder="Ej: lucia.garcia"/>
           <div className="text-right pt-1">
             <button onClick={agregarAlumno} className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-xl transition">Agregar</button>
           </div>
@@ -1813,6 +1836,8 @@ function ModCiudadania() {
         <div className="space-y-3">
           <Inp label="Apellido" value={editAp} onChange={e=>setEditAp(e.target.value)}/>
           <Inp label="Nombre" value={editNom} onChange={e=>setEditNom(e.target.value)}/>
+          <Inp label="Usuario (para el portal del alumno)" value={editUsuario} onChange={e=>setEditUsuario(e.target.value)} placeholder="Ej: lucia.garcia"/>
+          <p className="text-[10px] text-gray-400 -mt-2">El alumno ingresa al portal con este usuario + su ID de 3 dígitos ({String(modalEditAlumno.id).padStart(3,"0")}) como código.</p>
           <div className="flex justify-between items-center pt-1">
             <button onClick={()=>eliminarAlumno(modalEditAlumno.id)}
               className="text-xs border border-red-200 text-red-500 hover:bg-red-50 font-bold px-3 py-2 rounded-xl transition">
@@ -2075,9 +2100,150 @@ function Splash({onEnd}) {
 }
 
 // ══════════════════════════════════════════════════════════════════
-// APP PRINCIPAL
+// PORTAL DEL ALUMNO — solo lectura, acceso con usuario + código (ID)
 // ══════════════════════════════════════════════════════════════════
+const SESION_KEY = "portal_alumno_sesion";
+
+function PortalAlumno() {
+  const [usuario, setUsuario]   = useState("");
+  const [codigo, setCodigo]     = useState("");
+  const [cargando, setCargando] = useState(false);
+  const [error, setError]       = useState("");
+  const [sesion, setSesion]     = useState(()=>{
+    try { const v = sessionStorage.getItem(SESION_KEY); return v ? JSON.parse(v) : null; } catch { return null; }
+  });
+
+  const ingresar = async () => {
+    if(!usuario.trim()||!codigo.trim()){ setError("Completá usuario y código."); return; }
+    setCargando(true); setError("");
+    try {
+      const r = await api({action:"loginAlumno", data:{usuario:usuario.trim(), codigo:codigo.trim()}});
+      if(r.ok){
+        const s = { alumno:r.alumno, datos:r.datos };
+        setSesion(s);
+        try { sessionStorage.setItem(SESION_KEY, JSON.stringify(s)); } catch {}
+      } else {
+        setError(r.error || "Usuario o código incorrecto.");
+      }
+    } catch(e) {
+      setError("No se pudo conectar. Probá de nuevo.");
+    } finally { setCargando(false); }
+  };
+
+  const salir = () => {
+    setSesion(null); setUsuario(""); setCodigo("");
+    try { sessionStorage.removeItem(SESION_KEY); } catch {}
+  };
+
+  if(!sesion){
+    return <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-sm">
+        <Card>
+          <p className="text-center text-2xl mb-1">🎓</p>
+          <h1 className="text-center font-bold text-sm mb-1">Portal del Alumno</h1>
+          <p className="text-center text-[11px] text-gray-400 mb-4">Construcción de la Ciudadanía</p>
+          <div className="space-y-3">
+            <Inp label="Usuario" value={usuario} onChange={e=>setUsuario(e.target.value)} placeholder="Tu usuario" onKeyDown={e=>e.key==="Enter"&&ingresar()}/>
+            <Inp label="Código (tu número de alumno)" value={codigo} onChange={e=>setCodigo(e.target.value)} placeholder="Ej: 101" onKeyDown={e=>e.key==="Enter"&&ingresar()}/>
+            {error && <p className="text-[11px] text-red-500 font-medium">{error}</p>}
+            <button onClick={ingresar} disabled={cargando}
+              className={`w-full text-xs font-bold px-4 py-2.5 rounded-xl transition ${cargando?"bg-gray-200 text-gray-400":"bg-indigo-600 hover:bg-indigo-700 text-white"}`}>
+              {cargando?"Ingresando...":"Ingresar"}
+            </button>
+          </div>
+        </Card>
+        <p className="text-center text-[10px] text-gray-300 mt-4">Si no tenés usuario o código, pedíselo a tu profesor/a.</p>
+      </div>
+    </div>;
+  }
+
+  const { alumno, datos } = sesion;
+  const tps = datos.tps || [];
+  const tpEstados = datos.tpEstados || {};
+  const asist = datos.asistencias || {};
+  const notas = datos.notas || null;
+
+  const diasAsist = Object.keys(asist).sort();
+  const pres  = diasAsist.filter(f=>asist[f]==="P").length;
+  const aus   = diasAsist.filter(f=>asist[f]==="A").length;
+  const just  = diasAsist.filter(f=>asist[f]==="J").length;
+
+  const CAMPOS_NOTAS = [
+    ["b1","1° Bim"],["b2","2° Bim"],["c1","1° Cuatrim."],["b3","3° Bim"],["b4","4° Bim"],["c2","2° Cuatrim."],
+    ["dic_nota","Nota Dic."],["dic_result","Result. Dic."],["feb_nota","Nota Feb."],["cal_final","Cal. Final"],["estado_final","Estado Final"]
+  ];
+  // El backend devuelve las columnas con el texto exacto de la hoja
+  const NOTAS_HEADERS = ["1° Bim","2° Bim","1° Cuatrim.","3° Bim","4° Bim","2° Cuatrim.","Nota Dic.","Result. Dic.","Nota Feb.","Cal. Final","Estado Final"];
+
+  return <div className="min-h-screen bg-gray-50">
+    <div className="max-w-lg mx-auto pb-10">
+      <div className="px-4 pt-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Portal del Alumno</p>
+            <h1 className="font-bold text-base">{alumno.ap}, {alumno.nom}</h1>
+          </div>
+          <button onClick={salir} className="text-[10px] font-bold text-gray-400 hover:text-red-500 border border-gray-200 rounded-lg px-2 py-1">Salir</button>
+        </div>
+
+        <Card>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Mi asistencia</p>
+          <div className="grid grid-cols-3 gap-2">
+            {[{v:pres,l:"Presencias",c:"text-green-600"},{v:aus,l:"Ausencias",c:"text-red-600"},{v:just,l:"Justificadas",c:"text-blue-600"}].map(({v,l,c})=>
+              <div key={l} className="bg-gray-50 rounded-xl p-2 text-center">
+                <p className={`font-bold text-lg ${c}`}>{v}</p>
+                <p className="text-[9px] text-gray-400 font-bold uppercase">{l}</p>
+              </div>
+            )}
+          </div>
+        </Card>
+
+        <Card>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Mis trabajos prácticos</p>
+          {tps.length===0 && <p className="text-xs text-gray-400">Todavía no hay TPs cargados.</p>}
+          <div className="space-y-2">
+            {tps.map(tp=>{
+              const e = tpEstados[tp.id] || {estado:"NE", nota:""};
+              const color = e.estado==="E" ? "bg-green-50 text-green-700 border-green-200"
+                          : e.estado==="FT" ? "bg-amber-50 text-amber-700 border-amber-200"
+                          : "bg-gray-50 text-gray-500 border-gray-200";
+              const txt = e.estado==="E" ? "Entregado" : e.estado==="FT" ? "Fuera de término" : "No entregado";
+              return <div key={tp.id} className="flex items-center justify-between border-b border-gray-50 last:border-0 py-2">
+                <div>
+                  <p className="text-xs font-medium">TP {tp.num} — {tp.nombre}</p>
+                  {tp.fecha && <p className="text-[10px] text-gray-400">Entrega: {fmtFecha(tp.fecha)}</p>}
+                </div>
+                <div className="text-right">
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${color}`}>{txt}</span>
+                  {e.nota && <p className="text-[10px] text-gray-500 mt-0.5">Nota: {e.nota}</p>}
+                </div>
+              </div>;
+            })}
+          </div>
+        </Card>
+
+        <Card>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Mis notas</p>
+          {!notas && <p className="text-xs text-gray-400">Todavía no hay notas cargadas.</p>}
+          {notas && <div className="grid grid-cols-2 gap-2 text-xs">
+            {NOTAS_HEADERS.map(h=>(
+              <div key={h} className="bg-gray-50 rounded-lg px-2 py-1.5 flex justify-between items-center">
+                <span className="text-[10px] text-gray-400 font-bold">{h}</span>
+                <span className="font-medium">{notas[h]||"—"}</span>
+              </div>
+            ))}
+          </div>}
+        </Card>
+      </div>
+    </div>
+  </div>;
+}
+
+
 function App() {
+  const esPortalAlumno = window.location.hash.replace("#","").trim().toLowerCase() === "alumno";
+  if (esPortalAlumno) return <PortalAlumno/>;
+
   const [splash,setSplash]   = useState(true);
   const [tab,setTab]         = useState("dashboard");
   const [records,setRecords] = useState(()=>LS.get("prec_records",[]));
