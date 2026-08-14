@@ -12,6 +12,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <style>
     body{font-family:'Segoe UI',system-ui,sans-serif;background:#f9fafb}
     ::-webkit-scrollbar{width:4px}
@@ -2135,6 +2136,66 @@ function PortalAlumno() {
     try { sessionStorage.removeItem(SESION_KEY); } catch {}
   };
 
+  const NOTAS_HEADERS_PDF = ["1° Bim","2° Bim","1° Cuatrim.","3° Bim","4° Bim","2° Cuatrim.","Nota Dic.","Result. Dic.","Nota Feb.","Cal. Final","Estado Final"];
+
+  const descargarPDF = () => {
+    if(!sesion) return;
+    const { alumno, datos } = sesion;
+    const tps = datos.tps || [];
+    const tpEstados = datos.tpEstados || {};
+    const asist = datos.asistencias || {};
+    const notas = datos.notas || null;
+    const diasAsist = Object.keys(asist).sort();
+    const pres = diasAsist.filter(f=>asist[f]==="P").length;
+    const aus  = diasAsist.filter(f=>asist[f]==="A").length;
+    const just = diasAsist.filter(f=>asist[f]==="J").length;
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    let y = 20;
+    const margen = 15;
+    const anchoUtil = 180;
+
+    doc.setFont("helvetica","bold"); doc.setFontSize(14);
+    doc.text("Informe del Alumno — Construcción de la Ciudadanía", margen, y); y += 8;
+    doc.setFont("helvetica","normal"); doc.setFontSize(10);
+    doc.text(`${alumno.ap}, ${alumno.nom}  (N° ${alumno.id})`, margen, y); y += 5;
+    doc.text(`Generado el ${new Date().toLocaleDateString("es-AR")}`, margen, y); y += 10;
+
+    doc.setFont("helvetica","bold"); doc.setFontSize(11);
+    doc.text("Asistencia", margen, y); y += 6;
+    doc.setFont("helvetica","normal"); doc.setFontSize(10);
+    doc.text(`Presencias: ${pres}     Ausencias: ${aus}     Justificadas: ${just}`, margen, y); y += 10;
+
+    doc.setFont("helvetica","bold"); doc.setFontSize(11);
+    doc.text("Trabajos prácticos", margen, y); y += 6;
+    doc.setFont("helvetica","normal"); doc.setFontSize(9);
+    if(tps.length===0){ doc.text("Sin TPs cargados.", margen, y); y += 6; }
+    tps.forEach(tp=>{
+      if(y > 275){ doc.addPage(); y = 20; }
+      const e = tpEstados[tp.id] || {estado:"NE", nota:""};
+      const txt = e.estado==="E" ? "Entregado" : e.estado==="FT" ? "Fuera de término" : "No entregado";
+      const linea = `TP ${tp.num} — ${tp.nombre}${tp.fecha ? " (entrega: "+fmtFecha(tp.fecha)+")" : ""}  →  ${txt}${e.nota ? " — Nota: "+e.nota : ""}`;
+      const wrapped = doc.splitTextToSize(linea, anchoUtil);
+      doc.text(wrapped, margen, y); y += wrapped.length*5 + 2;
+    });
+
+    y += 4;
+    if(y > 260){ doc.addPage(); y = 20; }
+    doc.setFont("helvetica","bold"); doc.setFontSize(11);
+    doc.text("Notas", margen, y); y += 6;
+    doc.setFont("helvetica","normal"); doc.setFontSize(9);
+    if(!notas){ doc.text("Sin notas cargadas.", margen, y); }
+    else {
+      NOTAS_HEADERS_PDF.forEach(h=>{
+        if(y > 280){ doc.addPage(); y = 20; }
+        doc.text(`${h}: ${notas[h] || "—"}`, margen, y); y += 5.5;
+      });
+    }
+
+    doc.save(`Informe_${alumno.ap}_${alumno.nom}`.replace(/\s+/g,"_") + ".pdf");
+  };
+
   if(!sesion){
     return <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
@@ -2185,6 +2246,10 @@ function PortalAlumno() {
           </div>
           <button onClick={salir} className="text-[10px] font-bold text-gray-400 hover:text-red-500 border border-gray-200 rounded-lg px-2 py-1">Salir</button>
         </div>
+
+        <button onClick={descargarPDF} className="w-full text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl transition flex items-center justify-center gap-2">
+          ⬇️ Descargar mi informe (PDF)
+        </button>
 
         <Card>
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Mi asistencia</p>
