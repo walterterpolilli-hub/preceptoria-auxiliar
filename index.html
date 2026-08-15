@@ -1466,9 +1466,9 @@ function ModCiudadania() {
                   </select>
                 </td>
                 <td className="py-2 px-1 text-center">
-                  <input type="number" min="1" max="10" value={e.nota||""} placeholder="—"
+                  <input type="text" maxLength="6" value={e.nota||""} placeholder="8, 8+, ++"
                     onChange={ev=>setTPEstado(selTP,a.id,"nota",ev.target.value)}
-                    className="w-12 text-center border border-gray-200 rounded-lg px-1 py-1 text-[10px] bg-white"/>
+                    className="w-14 text-center border border-gray-200 rounded-lg px-1 py-1 text-[10px] bg-white"/>
                 </td>
                 <td className="py-2 px-1 text-center">
                   <button onClick={()=>setModalAlumno(a.id)} className="text-gray-300 hover:text-indigo-500 text-sm">👁</button>
