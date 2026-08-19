@@ -133,22 +133,22 @@ function printDoc(html, title) {
 
 // ── UI COMPONENTS ────────────────────────────────────────────────
 const iCls = "border border-gray-200 rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition w-full";
-const Lbl  = ({label,children}) => <div className="flex flex-col gap-1"><label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{label}</label>{children}</div>;
+const Lbl  = ({label,children}) => <div className="flex flex-col gap-1"><label className="text-sm font-bold text-gray-400 uppercase tracking-widest">{label}</label>{children}</div>;
 const Inp  = ({label,...p}) => <Lbl label={label}><input className={iCls} {...p}/></Lbl>;
 const Sel  = ({label,opts,...p}) => <Lbl label={label}><select className={iCls} {...p}><option value="">— Seleccionar —</option>{opts.map(o=><option key={o} value={o}>{o}</option>)}</select></Lbl>;
 const Txa  = ({label,rows=3,...p}) => <Lbl label={label}><textarea className={`${iCls} resize-none`} rows={rows} {...p}/></Lbl>;
 const Card = ({children,xCls=""}) => <div className={`bg-white rounded-2xl shadow-sm border border-gray-100 p-5 ${xCls}`}>{children}</div>;
 
 function SyncBadge({status}) {
-  if(status==="ok")     return <span className="text-[10px] bg-green-100 text-green-700 border border-green-200 rounded-full px-2 py-0.5 font-bold">✓ Drive</span>;
-  if(status==="saving") return <span className="text-[10px] bg-blue-100 text-blue-700 border border-blue-200 rounded-full px-2 py-0.5 font-bold"><span className="spin inline-block">↻</span> Guardando</span>;
-  if(status==="error")  return <span className="text-[10px] bg-red-100 text-red-700 border border-red-200 rounded-full px-2 py-0.5 font-bold">✗ Error Drive</span>;
+  if(status==="ok")     return <span className="text-sm bg-green-100 text-green-700 border border-green-200 rounded-full px-2 py-1 font-bold">✓ Drive</span>;
+  if(status==="saving") return <span className="text-sm bg-blue-100 text-blue-700 border border-blue-200 rounded-full px-2 py-1 font-bold"><span className="spin inline-block">↻</span> Guardando</span>;
+  if(status==="error")  return <span className="text-sm bg-red-100 text-red-700 border border-red-200 rounded-full px-2 py-1 font-bold">✗ Error Drive</span>;
   return null;
 }
 
 function Badge({color,children}) {
   const c = {indigo:"bg-indigo-100 text-indigo-800 border-indigo-200",amber:"bg-amber-100 text-amber-800 border-amber-200",red:"bg-red-100 text-red-800 border-red-200",green:"bg-green-100 text-green-800 border-green-200",slate:"bg-slate-100 text-slate-700 border-slate-200",teal:"bg-teal-100 text-teal-800 border-teal-200"};
-  return <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${c[color]||c.slate}`}>{children}</span>;
+  return <span className={`text-sm font-bold px-2 py-1 rounded-full border ${c[color]||c.slate}`}>{children}</span>;
 }
 
 function SecHdr({icon,title,sub,color}) {
@@ -169,7 +169,7 @@ function DriveResult({res}) {
   if(!res) return null;
   return <div className="mt-3 bg-green-50 border border-green-200 rounded-xl px-4 py-3 space-y-2">
     <p className="text-sm font-bold text-green-700">✅ PDF guardado en Drive</p>
-    <p className="text-[11px] text-green-600 truncate">📄 {res.name}</p>
+    <p className="text-base text-green-600 truncate">📄 {res.name}</p>
     <div className="flex gap-2 flex-wrap pt-1">
       <a href={res.driveUrl} target="_blank" className="flex-1 text-center text-xs font-bold bg-white border border-green-300 text-green-700 hover:bg-green-50 px-3 py-2 rounded-lg transition">📂 Abrir en Drive</a>
       <a href={res.downloadUrl} target="_blank" className="flex-1 text-center text-xs font-bold bg-white border border-green-300 text-green-700 hover:bg-green-50 px-3 py-2 rounded-lg transition">⬇️ Link descarga</a>
@@ -178,10 +178,10 @@ function DriveResult({res}) {
     {/* Certificado médico — link a archivo original en Drive */}
     {res.certDriveUrl && <div className="mt-2 bg-teal-50 border border-teal-200 rounded-lg px-3 py-2">
       <p className="text-xs font-bold text-teal-700 mb-1">📎 Certificado médico guardado en calidad original</p>
-      <p className="text-[10px] text-teal-600 truncate mb-1.5">🗂 {res.certFileName}</p>
+      <p className="text-sm text-teal-600 truncate mb-1.5">🗂 {res.certFileName}</p>
       <div className="flex gap-2">
-        <a href={res.certDriveUrl} target="_blank" className="flex-1 text-center text-[10px] font-bold bg-white border border-teal-300 text-teal-700 hover:bg-teal-50 px-2 py-1.5 rounded-lg transition">🔍 Ver certificado</a>
-        {res.subFolderUrl && <a href={res.subFolderUrl} target="_blank" className="flex-1 text-center text-[10px] font-bold bg-white border border-teal-300 text-teal-700 hover:bg-teal-50 px-2 py-1.5 rounded-lg transition">📁 Abrir carpeta del accidente</a>}
+        <a href={res.certDriveUrl} target="_blank" className="flex-1 text-center text-sm font-bold bg-white border border-teal-300 text-teal-700 hover:bg-teal-50 px-2 py-1.5 rounded-lg transition">🔍 Ver certificado</a>
+        {res.subFolderUrl && <a href={res.subFolderUrl} target="_blank" className="flex-1 text-center text-sm font-bold bg-white border border-teal-300 text-teal-700 hover:bg-teal-50 px-2 py-1.5 rounded-lg transition">📁 Abrir carpeta del accidente</a>}
       </div>
     </div>}
   </div>;
@@ -233,11 +233,11 @@ function HistItem({r, type, onDelete, onPrint}) {
         <Badge color={color}>{label}</Badge>
         <span className="text-sm font-semibold text-gray-800 truncate">{r.alumno}</span>
         <span className="text-xs text-gray-400 hidden sm:inline">{r.curso}</span>
-        {r.certBase64 && <span className="text-[9px] bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-full px-1.5 py-0.5 font-bold">📎 Cert.</span>}
+        {r.certBase64 && <span className="text-xs bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-full px-1.5 py-1 font-bold">📎 Cert.</span>}
       </div>
       <div className="flex items-center gap-1.5 ml-2 flex-shrink-0">
         <span className="text-xs text-gray-400">{fmtFecha(r.fecha)}</span>
-        <button onClick={e=>{e.stopPropagation();onPrint(r);}} className="text-xs bg-white border border-gray-200 rounded-lg px-2 py-0.5 hover:bg-indigo-50 hover:border-indigo-200 text-gray-500 hover:text-indigo-600 transition">📄</button>
+        <button onClick={e=>{e.stopPropagation();onPrint(r);}} className="text-xs bg-white border border-gray-200 rounded-lg px-2 py-1 hover:bg-indigo-50 hover:border-indigo-200 text-gray-500 hover:text-indigo-600 transition">📄</button>
         <button onClick={e=>{e.stopPropagation();onDelete(r.id);}} className="text-gray-300 hover:text-red-400 transition text-xl leading-none">×</button>
       </div>
     </div>
@@ -1241,15 +1241,15 @@ function ModCiudadania() {
   // styles inline compartidos
   const tabBtnCls = (id) => `px-3 py-1.5 text-xs font-bold rounded-lg border transition ${tabCiu===id?"bg-indigo-600 text-white border-indigo-600":"bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`;
   const estadoBadge = (e) => {
-    if(e==="E")  return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700 border border-green-200">Entregado</span>;
-    if(e==="FT") return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">Fuera de término</span>;
-    return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200">No entregado</span>;
+    if(e==="E")  return <span className="text-sm font-bold px-2 py-1 rounded-full bg-green-100 text-green-700 border border-green-200">Entregado</span>;
+    if(e==="FT") return <span className="text-sm font-bold px-2 py-1 rounded-full bg-amber-100 text-amber-700 border border-amber-200">Fuera de término</span>;
+    return <span className="text-sm font-bold px-2 py-1 rounded-full bg-red-100 text-red-700 border border-red-200">No entregado</span>;
   };
   const asistBadge = (e) => {
-    if(e==="P") return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700 border border-green-200">P</span>;
-    if(e==="A") return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200">A</span>;
-    if(e==="J") return <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200">J</span>;
-    return <span className="text-[10px] text-gray-300">—</span>;
+    if(e==="P") return <span className="text-sm font-bold px-2 py-1 rounded-full bg-green-100 text-green-700 border border-green-200">P</span>;
+    if(e==="A") return <span className="text-sm font-bold px-2 py-1 rounded-full bg-red-100 text-red-700 border border-red-200">A</span>;
+    if(e==="J") return <span className="text-sm font-bold px-2 py-1 rounded-full bg-blue-100 text-blue-700 border border-blue-200">J</span>;
+    return <span className="text-sm text-gray-300">—</span>;
   };
 
   // filtros asistencia
@@ -1271,24 +1271,24 @@ function ModCiudadania() {
       <div>
         <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center font-bold text-indigo-700">{iniCiu(a)}</div>
-          <div><p className="font-bold text-sm">{ncCiu(a)}</p><p className="text-[11px] text-gray-400">N° {a.id} · 2° 3° Tarde</p></div>
+          <div><p className="font-bold text-sm">{ncCiu(a)}</p><p className="text-base text-gray-400">N° {a.id} · 2° 3° Tarde</p></div>
         </div>
         <div className="grid grid-cols-4 gap-2 mb-4">
           {[{v:pres,l:"Presencias",c:"text-green-600"},{v:aus,l:"Ausencias",c:"text-red-600"},{v:just,l:"Justificadas",c:"text-blue-600"},{v:tpsFaltantes,l:"TPs faltantes",c:"text-gray-700"}].map(({v,l,c})=>
             <div key={l} className="bg-gray-50 rounded-xl p-2 text-center border border-gray-100">
               <div className={`text-lg font-black ${c}`}>{v}</div>
-              <div className="text-[9px] text-gray-400">{l}</div>
+              <div className="text-xs text-gray-400">{l}</div>
             </div>
           )}
         </div>
-        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Últimas clases</p>
+        <p className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-2">Últimas clases</p>
         <div className="flex flex-wrap gap-1 mb-4">
           {Object.entries(asistencias).filter(([f,d])=>d[id]).sort(([a],[b])=>a.localeCompare(b)).slice(-10).map(([f,d])=>
-            <span key={f} className="text-[10px] font-bold px-2 py-0.5 rounded-full border border-gray-200 bg-gray-50">{fmtFecha(f)} {asistBadge(d[id])}</span>
+            <span key={f} className="text-sm font-bold px-2 py-1 rounded-full border border-gray-200 bg-gray-50">{fmtFecha(f)} {asistBadge(d[id])}</span>
           )}
           {!Object.entries(asistencias).some(([f,d])=>d[id])&&<span className="text-xs text-gray-400">Sin registros aún</span>}
         </div>
-        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Trabajos prácticos</p>
+        <p className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-2">Trabajos prácticos</p>
         {tps.length===0&&<p className="text-xs text-gray-400 mb-3">No hay TPs creados aún.</p>}
         {tps.map(tp=>{
           const e=(tpEstados[tp.id]||{})[id]||{estado:"NE",nota:""};
@@ -1297,7 +1297,7 @@ function ModCiudadania() {
             <div className="flex items-center gap-2">{estadoBadge(e.estado)}<span className="text-xs font-bold text-gray-500">{e.nota||"—"}</span></div>
           </div>;
         })}
-        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-4 mb-2">Calificaciones anuales</p>
+        <p className="text-sm font-bold text-gray-400 uppercase tracking-widest mt-4 mb-2">Calificaciones anuales</p>
         {/* Bimestres y cuatrimestres */}
         <div className="grid grid-cols-2 gap-2 mb-3">
           {[{k:"b1",l:"1° Bimestre"},{k:"c1",l:"1° Cuatrim."},{k:"b3",l:"3° Bimestre"},{k:"c2",l:"2° Cuatrim."}].map(({k,l})=>{
@@ -1306,17 +1306,17 @@ function ModCiudadania() {
             const bgC=isC?"bg-purple-50 border-purple-100":"bg-gray-50 border-gray-100";
             return <div key={k} className={`rounded-xl p-2 text-center border ${bgC}`}>
               <div className={`text-base font-black ${isC?"text-purple-700":"text-gray-700"}`}>{val}</div>
-              <div className="text-[9px] text-gray-400">{l}</div>
+              <div className="text-xs text-gray-400">{l}</div>
             </div>;
           })}
         </div>
         {/* Intensificación si aplica */}
         {(getCal(id).dic_nota||getCal(id).feb_nota)&&<div className="bg-orange-50 border border-orange-100 rounded-xl p-3 mb-3">
-          <p className="text-[10px] font-bold text-orange-600 mb-2">🔥 Intensificación</p>
+          <p className="text-sm font-bold text-orange-600 mb-2">🔥 Intensificación</p>
           <div className="grid grid-cols-3 gap-2 text-center">
-            <div><div className="text-sm font-black text-orange-700">{getCal(id).dic_nota||"—"}</div><div className="text-[9px] text-gray-400">Nota Dic.</div></div>
-            <div><div className="text-sm font-black text-orange-700">{parseFloat(getCal(id).dic_nota)>=4?"Aprobado":getCal(id).dic_result||"—"}</div><div className="text-[9px] text-gray-400">Result. Dic.</div></div>
-            <div><div className="text-sm font-black text-orange-700">{getCal(id).feb_nota||"—"}</div><div className="text-[9px] text-gray-400">Nota Feb.</div></div>
+            <div><div className="text-sm font-black text-orange-700">{getCal(id).dic_nota||"—"}</div><div className="text-xs text-gray-400">Nota Dic.</div></div>
+            <div><div className="text-sm font-black text-orange-700">{parseFloat(getCal(id).dic_nota)>=4?"Aprobado":getCal(id).dic_result||"—"}</div><div className="text-xs text-gray-400">Result. Dic.</div></div>
+            <div><div className="text-sm font-black text-orange-700">{getCal(id).feb_nota||"—"}</div><div className="text-xs text-gray-400">Nota Feb.</div></div>
           </div>
         </div>}
         {/* Calificación final */}
@@ -1324,11 +1324,11 @@ function ModCiudadania() {
           const f=calcularFinal(id);
           const cls={green:"bg-green-50 border-green-200 text-green-700",amber:"bg-amber-50 border-amber-200 text-amber-700",red:"bg-red-50 border-red-200 text-red-700",slate:"bg-gray-50 border-gray-200 text-gray-500"};
           return <div className={`rounded-xl border p-3 mb-3 flex items-center justify-between ${cls[f.color]||cls.slate}`}>
-            <div><p className="text-[10px] font-bold uppercase tracking-widest opacity-70">Calificación final</p><p className="text-xs mt-0.5 opacity-70">{f.detalle}</p></div>
+            <div><p className="text-sm font-bold uppercase tracking-widest opacity-70">Calificación final</p><p className="text-xs mt-0.5 opacity-70">{f.detalle}</p></div>
             <span className="text-lg font-black">{f.label}</span>
           </div>;
         })()}
-        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Observaciones generales</p>
+        <p className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-2">Observaciones generales</p>
         <div className="mb-4">
           <textarea rows={3} value={getObsEfectiva(id)}
             placeholder="Ej: mejoró mucho la participación en clase, avisar a la familia por inasistencias..."
@@ -1336,16 +1336,16 @@ function ModCiudadania() {
             onBlur={ev=>saveObsAlumno(id, ev.target.value)}
             className="w-full text-xs border border-gray-200 rounded-xl px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400 transition"/>
           <div className="flex justify-end mt-1">
-            {syncObs==="saving" && <span className="text-[10px] text-gray-400"><span className="spin inline-block">↻</span> Guardando...</span>}
-            {syncObs==="ok"     && <span className="text-[10px] text-green-600 font-bold">✓ Guardado en Drive</span>}
-            {syncObs==="error"  && <span className="text-[10px] text-red-500 font-bold">✗ Error al guardar</span>}
+            {syncObs==="saving" && <span className="text-sm text-gray-400"><span className="spin inline-block">↻</span> Guardando...</span>}
+            {syncObs==="ok"     && <span className="text-sm text-green-600 font-bold">✓ Guardado en Drive</span>}
+            {syncObs==="error"  && <span className="text-sm text-red-500 font-bold">✗ Error al guardar</span>}
           </div>
         </div>
-        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Citaciones a la familia</p>
+        <p className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-2">Citaciones a la familia</p>
         {cits.length===0?<div className="flex justify-between items-center"><span className="text-xs text-gray-400">Sin citaciones</span><button onClick={()=>{setModalAlumno(null);abrirCit(id);}} className="text-xs bg-amber-50 border border-amber-200 text-amber-700 px-3 py-1 rounded-lg font-bold">+ Registrar</button></div>:
           <>{cits.map((c,i)=><div key={i} className="bg-amber-50 border border-amber-100 rounded-xl p-3 mb-2">
-            <div className="flex justify-between mb-1"><span className="text-xs font-bold">{c.motivos.join(" · ")}</span><span className="text-[10px] text-gray-400">{fmtFecha(c.fecha)}</span></div>
-            {c.obs&&<p className="text-[11px] text-gray-500">{c.obs}</p>}
+            <div className="flex justify-between mb-1"><span className="text-xs font-bold">{c.motivos.join(" · ")}</span><span className="text-sm text-gray-400">{fmtFecha(c.fecha)}</span></div>
+            {c.obs&&<p className="text-base text-gray-500">{c.obs}</p>}
           </div>)}
           <button onClick={()=>{setModalAlumno(null);abrirCit(id);}} className="text-xs bg-amber-50 border border-amber-200 text-amber-700 px-3 py-1 rounded-lg font-bold mt-1">+ Nueva citación</button>
           </>
@@ -1364,10 +1364,10 @@ function ModCiudadania() {
           <p className="text-xs opacity-70 mt-0.5">2° año 3° sección · Prof. Walter Terpolilli · Turno Tarde · Martes y Jueves</p>
         </div>
         <div className="ml-2 mt-1 flex-shrink-0">
-          {ciuSync==="loading" && <span className="text-[10px] bg-white/20 text-white rounded-full px-2 py-0.5 font-bold"><span className="spin inline-block">↻</span> Cargando</span>}
-          {ciuSync==="saving"  && <span className="text-[10px] bg-white/20 text-white rounded-full px-2 py-0.5 font-bold"><span className="spin inline-block">↻</span> Guardando</span>}
-          {ciuSync==="ok"      && <span className="text-[10px] bg-green-400/30 text-green-200 rounded-full px-2 py-0.5 font-bold">✓ Drive</span>}
-          {ciuSync==="error"   && <span className="text-[10px] bg-red-400/30 text-red-200 rounded-full px-2 py-0.5 font-bold" title={ciuErr}>✗ Error</span>}
+          {ciuSync==="loading" && <span className="text-sm bg-white/20 text-white rounded-full px-2 py-1 font-bold"><span className="spin inline-block">↻</span> Cargando</span>}
+          {ciuSync==="saving"  && <span className="text-sm bg-white/20 text-white rounded-full px-2 py-1 font-bold"><span className="spin inline-block">↻</span> Guardando</span>}
+          {ciuSync==="ok"      && <span className="text-sm bg-green-400/30 text-green-200 rounded-full px-2 py-1 font-bold">✓ Drive</span>}
+          {ciuSync==="error"   && <span className="text-sm bg-red-400/30 text-red-200 rounded-full px-2 py-1 font-bold" title={ciuErr}>✗ Error</span>}
         </div>
       </div>
     </div>
@@ -1389,31 +1389,31 @@ function ModCiudadania() {
         <input type="text" placeholder="Buscar..." value={buscarAsist} onChange={e=>setBusA(e.target.value)} className={`${iCls} flex-1`}/>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-xs">
+        <table className="w-full text-sm">
           <thead><tr className="border-b border-gray-100">
-            <th className="text-left py-2 px-1 text-gray-400 font-bold w-6">#</th>
-            <th className="text-left py-2 px-1 text-gray-400 font-bold">Apellido y nombre</th>
-            <th className="text-center py-2 px-1 text-gray-400 font-bold w-28">Estado</th>
-            <th className="text-center py-2 px-1 text-gray-400 font-bold w-20">Ausencias</th>
-            <th className="text-center py-2 px-1 text-gray-400 font-bold w-10">Ver</th>
+            <th className="text-left py-2.5 px-2 text-gray-400 font-bold w-8">#</th>
+            <th className="text-left py-2.5 px-2 text-gray-400 font-bold">Apellido y nombre</th>
+            <th className="text-center py-2.5 px-2 text-gray-400 font-bold w-28">Estado</th>
+            <th className="text-center py-2.5 px-2 text-gray-400 font-bold w-24">Ausencias</th>
+            <th className="text-center py-2.5 px-2 text-gray-400 font-bold w-12">Ver</th>
           </tr></thead>
           <tbody>
             {alumFiltrados.map(a=>{
               const e=getAsist(fechaAsist,a.id);
               const aus=cntAus(a.id);
               return <tr key={a.id} className="border-b border-gray-50 hover:bg-gray-50">
-                <td className="py-2 px-1 text-gray-300">{a.id}</td>
-                <td className="py-2 px-1 font-medium">{ncCiu(a)}</td>
-                <td className="py-2 px-1">
+                <td className="py-2.5 px-2 text-gray-300">{a.id}</td>
+                <td className="py-2.5 px-2 font-medium">{ncCiu(a)}</td>
+                <td className="py-2.5 px-2">
                   <div className="flex gap-1 justify-center">
                     {["P","A","J"].map(x=><button key={x} onClick={()=>setAsistUno(fechaAsist,a.id,x)}
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold border transition ${e===x?"bg-indigo-600 text-white border-indigo-600":"bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}>{x}</button>)}
+                      className={`px-2 py-1 rounded text-sm font-bold border transition ${e===x?"bg-indigo-600 text-white border-indigo-600":"bg-white text-gray-500 border-gray-200 hover:bg-gray-50"}`}>{x}</button>)}
                   </div>
                 </td>
-                <td className="py-2 px-1 text-center">
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${aus>3?"bg-red-100 text-red-700 border-red-200":aus>0?"bg-amber-100 text-amber-700 border-amber-200":"bg-green-100 text-green-700 border-green-200"}`}>{aus} aus.</span>
+                <td className="py-2.5 px-2 text-center">
+                  <span className={`text-sm font-bold px-2 py-1 rounded-full border ${aus>3?"bg-red-100 text-red-700 border-red-200":aus>0?"bg-amber-100 text-amber-700 border-amber-200":"bg-green-100 text-green-700 border-green-200"}`}>{aus} aus.</span>
                 </td>
-                <td className="py-2 px-1 text-center">
+                <td className="py-2.5 px-2 text-center">
                   <button onClick={()=>setModalAlumno(a.id)} className="text-gray-300 hover:text-indigo-500 text-sm">👁</button>
                 </td>
               </tr>;
@@ -1422,9 +1422,9 @@ function ModCiudadania() {
         </table>
       </div>
       <div className="flex items-center justify-end gap-3 mt-3">
-        {syncAsist==="saving" && <span className="text-[10px] text-gray-400"><span className="spin inline-block">↻</span> Guardando...</span>}
-        {syncAsist==="ok"     && <span className="text-[10px] text-green-600 font-bold">✓ Guardado en Drive</span>}
-        {syncAsist==="error"  && <span className="text-[10px] text-red-500 font-bold">✗ Error al guardar</span>}
+        {syncAsist==="saving" && <span className="text-sm text-gray-400"><span className="spin inline-block">↻</span> Guardando...</span>}
+        {syncAsist==="ok"     && <span className="text-sm text-green-600 font-bold">✓ Guardado en Drive</span>}
+        {syncAsist==="error"  && <span className="text-sm text-red-500 font-bold">✗ Error al guardar</span>}
         <button onClick={()=>driveGuardarAsist(asistencias)} disabled={syncAsist==="saving"}
           className={`text-xs font-bold px-4 py-2 rounded-xl transition ${syncAsist==="saving"?"bg-gray-200 text-gray-400 cursor-not-allowed":"bg-indigo-600 hover:bg-indigo-700 text-white"}`}>
           💾 Guardar en Drive
@@ -1439,7 +1439,7 @@ function ModCiudadania() {
         <button onClick={abrirNuevoTP} className="text-xs bg-indigo-600 text-white font-bold px-3 py-1.5 rounded-lg">+ Nuevo TP</button>
       </div>
       {tps.length>0&&<div className="flex gap-1 flex-wrap mb-3">
-        {tps.map(t=><span key={t.id} className={`inline-flex items-center gap-1 text-[10px] font-bold pl-2 pr-1 py-1 rounded-full border transition ${selTP===t.id?"bg-purple-600 text-white border-purple-600":"bg-purple-50 text-purple-700 border-purple-200"}`}>
+        {tps.map(t=><span key={t.id} className={`inline-flex items-center gap-1 text-sm font-bold pl-2 pr-1 py-1 rounded-full border transition ${selTP===t.id?"bg-purple-600 text-white border-purple-600":"bg-purple-50 text-purple-700 border-purple-200"}`}>
           <button onClick={()=>setSelTP(t.id)}>TP {t.num} — {t.nombre}</button>
           <button onClick={()=>abrirEditarTP(t)} title="Editar TP" className={`px-1 rounded-full ${selTP===t.id?"hover:bg-purple-500":"hover:bg-purple-200"}`}>✏️</button>
         </span>)}
@@ -1449,35 +1449,35 @@ function ModCiudadania() {
         {tps.map(t=><option key={t.id} value={t.id}>TP {t.num} — {t.nombre}{t.grupal?" (grupal)":""}</option>)}
       </select>
       <div className="overflow-x-auto">
-        <table className="w-full text-xs">
+        <table className="w-full text-sm">
           <thead><tr className="border-b border-gray-100">
-            <th className="text-left py-2 px-1 text-gray-400 font-bold w-6">#</th>
-            <th className="text-left py-2 px-1 text-gray-400 font-bold">Apellido y nombre</th>
-            <th className="text-center py-2 px-1 text-gray-400 font-bold w-32">Estado</th>
-            <th className="text-center py-2 px-1 text-gray-400 font-bold w-16">Nota</th>
-            <th className="text-center py-2 px-1 text-gray-400 font-bold w-10">Ver</th>
+            <th className="text-left py-2.5 px-2 text-gray-400 font-bold w-8">#</th>
+            <th className="text-left py-2.5 px-2 text-gray-400 font-bold">Apellido y nombre</th>
+            <th className="text-center py-2.5 px-2 text-gray-400 font-bold w-32">Estado</th>
+            <th className="text-center py-2.5 px-2 text-gray-400 font-bold w-20">Nota</th>
+            <th className="text-center py-2.5 px-2 text-gray-400 font-bold w-12">Ver</th>
           </tr></thead>
           <tbody>
             {!selTP?<tr><td colSpan={5} className="py-8 text-center text-gray-400">Seleccioná un TP para ver el estado</td></tr>:
             ALUMNOS_CIU.map(a=>{
               const e=(tpEstados[selTP]||{})[a.id]||{estado:"NE",nota:""};
               return <tr key={a.id} className="border-b border-gray-50 hover:bg-gray-50">
-                <td className="py-2 px-1 text-gray-300">{a.id}</td>
-                <td className="py-2 px-1 font-medium">{ncCiu(a)}</td>
-                <td className="py-2 px-1">
+                <td className="py-2.5 px-2 text-gray-300">{a.id}</td>
+                <td className="py-2.5 px-2 font-medium">{ncCiu(a)}</td>
+                <td className="py-2.5 px-2">
                   <select value={e.estado} onChange={ev=>setTPEstado(selTP,a.id,"estado",ev.target.value)}
-                    className="text-[10px] border border-gray-200 rounded-lg px-1 py-1 bg-white w-full">
+                    className="text-sm border border-gray-200 rounded-lg px-1 py-1 bg-white w-full">
                     <option value="NE">No entregado</option>
                     <option value="E">Entregado</option>
                     <option value="FT">Fuera de término</option>
                   </select>
                 </td>
-                <td className="py-2 px-1 text-center">
+                <td className="py-2.5 px-2 text-center">
                   <input type="text" maxLength="6" value={e.nota||""} placeholder="8, 8+, ++"
                     onChange={ev=>setTPEstado(selTP,a.id,"nota",ev.target.value)}
-                    className="w-14 text-center border border-gray-200 rounded-lg px-1 py-1 text-[10px] bg-white"/>
+                    className="w-16 text-center border border-gray-200 rounded-lg px-1 py-1 text-sm bg-white"/>
                 </td>
-                <td className="py-2 px-1 text-center">
+                <td className="py-2.5 px-2 text-center">
                   <button onClick={()=>setModalAlumno(a.id)} className="text-gray-300 hover:text-indigo-500 text-sm">👁</button>
                 </td>
               </tr>;
@@ -1486,9 +1486,9 @@ function ModCiudadania() {
         </table>
       </div>
       <div className="flex items-center justify-end gap-3 mt-3">
-        {syncTPs==="saving" && <span className="text-[10px] text-gray-400"><span className="spin inline-block">↻</span> Guardando...</span>}
-        {syncTPs==="ok"     && <span className="text-[10px] text-green-600 font-bold">✓ Guardado en Drive</span>}
-        {syncTPs==="error"  && <span className="text-[10px] text-red-500 font-bold">✗ Error al guardar</span>}
+        {syncTPs==="saving" && <span className="text-sm text-gray-400"><span className="spin inline-block">↻</span> Guardando...</span>}
+        {syncTPs==="ok"     && <span className="text-sm text-green-600 font-bold">✓ Guardado en Drive</span>}
+        {syncTPs==="error"  && <span className="text-sm text-red-500 font-bold">✗ Error al guardar</span>}
         <button onClick={()=>driveGuardarTPs(tps,tpEstados)} disabled={syncTPs==="saving"}
           className={`text-xs font-bold px-4 py-2 rounded-xl transition ${syncTPs==="saving"?"bg-gray-200 text-gray-400 cursor-not-allowed":"bg-indigo-600 hover:bg-indigo-700 text-white"}`}>
           💾 Guardar en Drive
@@ -1498,7 +1498,7 @@ function ModCiudadania() {
     {tabCiu==="notas" && (() => {
       const BIM_SEL = ({id, campo}) => (
         <select value={getNotaEfectiva(id,campo)||""} onChange={ev=>setNotaEdit(id,campo,ev.target.value)}
-          className="text-[10px] border border-gray-200 rounded px-1 py-0.5 bg-white w-14 text-center">
+          className="text-sm border border-gray-200 rounded px-1 py-1 bg-white w-16 text-center">
           <option value="">—</option>
           <option value="TEA">TEA</option>
           <option value="TEP">TEP</option>
@@ -1507,7 +1507,7 @@ function ModCiudadania() {
       );
       const NUM_SEL = ({id, campo, placeholder="—"}) => (
         <select value={getNotaEfectiva(id,campo)||""} onChange={ev=>setNotaEdit(id,campo,ev.target.value)}
-          className="w-12 text-center border border-gray-200 rounded px-1 py-0.5 text-[10px] bg-white">
+          className="w-14 text-center border border-gray-200 rounded px-1 py-1 text-sm bg-white">
           <option value="">{placeholder}</option>
           {[1,2,3,4,5,6,7,8,9,10].map(n=><option key={n} value={n}>{n}</option>)}
         </select>
@@ -1515,31 +1515,31 @@ function ModCiudadania() {
       const finalBadge = (id) => {
         const f = calcularFinal(id);
         const cls = {green:"bg-green-100 text-green-700 border-green-200", amber:"bg-amber-100 text-amber-700 border-amber-200", red:"bg-red-100 text-red-700 border-red-200", slate:"bg-gray-100 text-gray-500 border-gray-200"};
-        return <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${cls[f.color]||cls.slate}`} title={f.detalle}>{f.label}</span>;
+        return <span className={`text-sm font-bold px-2 py-1 rounded-full border whitespace-nowrap ${cls[f.color]||cls.slate}`} title={f.detalle}>{f.label}</span>;
       };
 
       return <div className="space-y-4">
 
         {/* ─ 1° CUATRIMESTRE ─ */}
         <Card>
-          <p className="text-[10px] font-black text-purple-600 uppercase tracking-widest mb-3">📘 1° Cuatrimestre</p>
+          <p className="text-sm font-black text-purple-600 uppercase tracking-widest mb-3">📘 1° Cuatrimestre</p>
           <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+            <table className="w-full text-sm">
               <thead><tr className="border-b border-gray-100">
-                <th className="text-left py-1.5 px-1 text-gray-400 font-bold w-6">#</th>
-                <th className="text-left py-1.5 px-1 text-gray-400 font-bold">Alumno/a</th>
-                <th className="text-center py-1.5 px-1 text-gray-400 font-bold w-16">1° Bim<br/><span className="font-normal text-[9px]">TEA/TEP/TED</span></th>
-                <th className="text-center py-1.5 px-1 text-gray-400 font-bold w-16">1° Cuatrim.<br/><span className="font-normal text-[9px]">nota 1-10</span></th>
-                <th className="text-center py-1.5 px-1 text-gray-400 font-bold w-10">Ver</th>
+                <th className="text-left py-2.5 px-2 text-gray-400 font-bold w-8">#</th>
+                <th className="text-left py-2.5 px-2 text-gray-400 font-bold">Alumno/a</th>
+                <th className="text-center py-2.5 px-2 text-gray-400 font-bold w-20">1° Bim<br/><span className="font-normal text-xs">TEA/TEP/TED</span></th>
+                <th className="text-center py-2.5 px-2 text-gray-400 font-bold w-20">1° Cuatrim.<br/><span className="font-normal text-xs">nota 1-10</span></th>
+                <th className="text-center py-2.5 px-2 text-gray-400 font-bold w-12">Ver</th>
               </tr></thead>
               <tbody>
                 {ALUMNOS_CIU.map(a=>(
                   <tr key={a.id} className="border-b border-gray-50 hover:bg-gray-50">
-                    <td className="py-1.5 px-1 text-gray-300">{a.id}</td>
-                    <td className="py-1.5 px-1 font-medium">{ncCiu(a)}</td>
-                    <td className="py-1.5 px-1 text-center"><BIM_SEL id={a.id} campo="b1"/></td>
-                    <td className="py-1.5 px-1 text-center"><NUM_SEL id={a.id} campo="c1"/></td>
-                    <td className="py-1.5 px-1 text-center"><button onClick={()=>setModalAlumno(a.id)} className="text-gray-300 hover:text-indigo-500 text-sm">👁</button></td>
+                    <td className="py-2.5 px-2 text-gray-300">{a.id}</td>
+                    <td className="py-2.5 px-2 font-medium">{ncCiu(a)}</td>
+                    <td className="py-2.5 px-2 text-center"><BIM_SEL id={a.id} campo="b1"/></td>
+                    <td className="py-2.5 px-2 text-center"><NUM_SEL id={a.id} campo="c1"/></td>
+                    <td className="py-2.5 px-2 text-center"><button onClick={()=>setModalAlumno(a.id)} className="text-gray-300 hover:text-indigo-500 text-sm">👁</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -1549,24 +1549,24 @@ function ModCiudadania() {
 
         {/* ─ 2° CUATRIMESTRE ─ */}
         <Card>
-          <p className="text-[10px] font-black text-purple-600 uppercase tracking-widest mb-3">📗 2° Cuatrimestre</p>
+          <p className="text-sm font-black text-purple-600 uppercase tracking-widest mb-3">📗 2° Cuatrimestre</p>
           <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+            <table className="w-full text-sm">
               <thead><tr className="border-b border-gray-100">
-                <th className="text-left py-1.5 px-1 text-gray-400 font-bold w-6">#</th>
-                <th className="text-left py-1.5 px-1 text-gray-400 font-bold">Alumno/a</th>
-                <th className="text-center py-1.5 px-1 text-gray-400 font-bold w-16">3° Bim<br/><span className="font-normal text-[9px]">TEA/TEP/TED</span></th>
-                <th className="text-center py-1.5 px-1 text-gray-400 font-bold w-16">2° Cuatrim.<br/><span className="font-normal text-[9px]">nota 1-10</span></th>
-                <th className="text-center py-1.5 px-1 text-gray-400 font-bold w-10">Ver</th>
+                <th className="text-left py-2.5 px-2 text-gray-400 font-bold w-8">#</th>
+                <th className="text-left py-2.5 px-2 text-gray-400 font-bold">Alumno/a</th>
+                <th className="text-center py-2.5 px-2 text-gray-400 font-bold w-20">3° Bim<br/><span className="font-normal text-xs">TEA/TEP/TED</span></th>
+                <th className="text-center py-2.5 px-2 text-gray-400 font-bold w-20">2° Cuatrim.<br/><span className="font-normal text-xs">nota 1-10</span></th>
+                <th className="text-center py-2.5 px-2 text-gray-400 font-bold w-12">Ver</th>
               </tr></thead>
               <tbody>
                 {ALUMNOS_CIU.map(a=>(
                   <tr key={a.id} className="border-b border-gray-50 hover:bg-gray-50">
-                    <td className="py-1.5 px-1 text-gray-300">{a.id}</td>
-                    <td className="py-1.5 px-1 font-medium">{ncCiu(a)}</td>
-                    <td className="py-1.5 px-1 text-center"><BIM_SEL id={a.id} campo="b3"/></td>
-                    <td className="py-1.5 px-1 text-center"><NUM_SEL id={a.id} campo="c2"/></td>
-                    <td className="py-1.5 px-1 text-center"><button onClick={()=>setModalAlumno(a.id)} className="text-gray-300 hover:text-indigo-500 text-sm">👁</button></td>
+                    <td className="py-2.5 px-2 text-gray-300">{a.id}</td>
+                    <td className="py-2.5 px-2 font-medium">{ncCiu(a)}</td>
+                    <td className="py-2.5 px-2 text-center"><BIM_SEL id={a.id} campo="b3"/></td>
+                    <td className="py-2.5 px-2 text-center"><NUM_SEL id={a.id} campo="c2"/></td>
+                    <td className="py-2.5 px-2 text-center"><button onClick={()=>setModalAlumno(a.id)} className="text-gray-300 hover:text-indigo-500 text-sm">👁</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -1576,17 +1576,17 @@ function ModCiudadania() {
 
         {/* ─ INTENSIFICACIÓN ─ */}
         <Card>
-          <p className="text-[10px] font-black text-orange-600 uppercase tracking-widest mb-1">🔥 Intensificación</p>
-          <p className="text-[10px] text-gray-400 mb-3">Solo para alumnos que no aprobaron ambos cuatrimestres con 7 o más. Dic: ≥4 → nota del docente es la calificación final; &lt;4 → CCA o CSA y pasa a Febrero. Feb: ≥4 aprobado, &lt;4 nota final.</p>
+          <p className="text-sm font-black text-orange-600 uppercase tracking-widest mb-1">🔥 Intensificación</p>
+          <p className="text-sm text-gray-400 mb-3">Solo para alumnos que no aprobaron ambos cuatrimestres con 7 o más. Dic: ≥4 → nota del docente es la calificación final; &lt;4 → CCA o CSA y pasa a Febrero. Feb: ≥4 aprobado, &lt;4 nota final.</p>
           <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+            <table className="w-full text-sm">
               <thead><tr className="border-b border-gray-100">
-                <th className="text-left py-1.5 px-1 text-gray-400 font-bold w-6">#</th>
-                <th className="text-left py-1.5 px-1 text-gray-400 font-bold">Alumno/a</th>
-                <th className="text-center py-1.5 px-1 text-gray-400 font-bold w-16">Nota Dic.<br/><span className="font-normal text-[9px]">1-10</span></th>
-                <th className="text-center py-1.5 px-1 text-gray-400 font-bold w-20">Result. Dic.<br/><span className="font-normal text-[9px]">si &lt;4</span></th>
-                <th className="text-center py-1.5 px-1 text-gray-400 font-bold w-16">Nota Feb.<br/><span className="font-normal text-[9px]">1-10</span></th>
-                <th className="text-center py-1.5 px-1 text-gray-400 font-bold w-10">Ver</th>
+                <th className="text-left py-2.5 px-2 text-gray-400 font-bold w-8">#</th>
+                <th className="text-left py-2.5 px-2 text-gray-400 font-bold">Alumno/a</th>
+                <th className="text-center py-2.5 px-2 text-gray-400 font-bold w-20">Nota Dic.<br/><span className="font-normal text-xs">1-10</span></th>
+                <th className="text-center py-2.5 px-2 text-gray-400 font-bold w-24">Result. Dic.<br/><span className="font-normal text-xs">si &lt;4</span></th>
+                <th className="text-center py-2.5 px-2 text-gray-400 font-bold w-20">Nota Feb.<br/><span className="font-normal text-xs">1-10</span></th>
+                <th className="text-center py-2.5 px-2 text-gray-400 font-bold w-12">Ver</th>
               </tr></thead>
               <tbody>
                 {ALUMNOS_CIU.map(a=>{
@@ -1598,27 +1598,27 @@ function ModCiudadania() {
                   const hasFeb=getNotaEfectiva(a.id,"feb_nota")!=="";
                   const necesita = hasDic||hasFeb||(c1!==null&&c2!==null&&!(c1>=7&&c2>=7));
                   if(!necesita) return <tr key={a.id} className="border-b border-gray-50 opacity-40">
-                    <td className="py-1.5 px-1 text-gray-300">{a.id}</td>
-                    <td className="py-1.5 px-1 text-gray-400">{ncCiu(a)}</td>
-                    <td colSpan={4} className="py-1.5 px-1 text-center text-gray-300 text-[10px]">no aplica</td>
+                    <td className="py-2.5 px-2 text-gray-300">{a.id}</td>
+                    <td className="py-2.5 px-2 text-gray-400">{ncCiu(a)}</td>
+                    <td colSpan={4} className="py-2.5 px-2 text-center text-gray-300 text-sm">no aplica</td>
                   </tr>;
                   const dicNota=parseFloat(getNotaEfectiva(a.id,"dic_nota"))||null;
                   return <tr key={a.id} className="border-b border-gray-50 hover:bg-orange-50/40">
-                    <td className="py-1.5 px-1 text-gray-300">{a.id}</td>
-                    <td className="py-1.5 px-1 font-medium">{ncCiu(a)}</td>
-                    <td className="py-1.5 px-1 text-center"><NUM_SEL id={a.id} campo="dic_nota"/></td>
-                    <td className="py-1.5 px-1 text-center">
+                    <td className="py-2.5 px-2 text-gray-300">{a.id}</td>
+                    <td className="py-2.5 px-2 font-medium">{ncCiu(a)}</td>
+                    <td className="py-2.5 px-2 text-center"><NUM_SEL id={a.id} campo="dic_nota"/></td>
+                    <td className="py-2.5 px-2 text-center">
                       {dicNota!==null && dicNota<4
                         ? <select value={getNotaEfectiva(a.id,"dic_result")||"CCA"} onChange={ev=>setNotaEdit(a.id,"dic_result",ev.target.value)}
-                            className="text-[10px] border border-orange-200 rounded px-1 py-0.5 bg-orange-50 w-16 text-center">
+                            className="text-sm border border-orange-200 rounded px-1 py-1 bg-orange-50 w-20 text-center">
                             <option value="CCA">CCA</option>
                             <option value="CSA">CSA</option>
                           </select>
-                        : <span className="text-[10px] text-gray-300">{dicNota!==null&&dicNota>=4?"Aprobado":"—"}</span>
+                        : <span className="text-sm text-gray-300">{dicNota!==null&&dicNota>=4?"Aprobado":"—"}</span>
                       }
                     </td>
-                    <td className="py-1.5 px-1 text-center"><NUM_SEL id={a.id} campo="feb_nota"/></td>
-                    <td className="py-1.5 px-1 text-center"><button onClick={()=>setModalAlumno(a.id)} className="text-gray-300 hover:text-indigo-500 text-sm">👁</button></td>
+                    <td className="py-2.5 px-2 text-center"><NUM_SEL id={a.id} campo="feb_nota"/></td>
+                    <td className="py-2.5 px-2 text-center"><button onClick={()=>setModalAlumno(a.id)} className="text-gray-300 hover:text-indigo-500 text-sm">👁</button></td>
                   </tr>;
                 })}
               </tbody>
@@ -1628,17 +1628,17 @@ function ModCiudadania() {
 
         {/* ─ RESUMEN FINAL ─ */}
         <Card>
-          <p className="text-[10px] font-black text-indigo-600 uppercase tracking-widest mb-3">🏁 Calificación Final</p>
+          <p className="text-sm font-black text-indigo-600 uppercase tracking-widest mb-3">🏁 Calificación Final</p>
           <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+            <table className="w-full text-sm">
               <thead><tr className="border-b border-gray-100">
-                <th className="text-left py-1.5 px-1 text-gray-400 font-bold w-6">#</th>
-                <th className="text-left py-1.5 px-1 text-gray-400 font-bold">Alumno/a</th>
-                <th className="text-center py-1.5 px-1 text-gray-400 font-bold w-12">C1</th>
-                <th className="text-center py-1.5 px-1 text-gray-400 font-bold w-12">C2</th>
-                <th className="text-center py-1.5 px-1 text-gray-400 font-bold w-28">Calificación final</th>
-                <th className="text-center py-1.5 px-1 text-gray-400 font-bold w-20">Familia</th>
-                <th className="text-center py-1.5 px-1 text-gray-400 font-bold w-10">Ver</th>
+                <th className="text-left py-2.5 px-2 text-gray-400 font-bold w-8">#</th>
+                <th className="text-left py-2.5 px-2 text-gray-400 font-bold">Alumno/a</th>
+                <th className="text-center py-2.5 px-2 text-gray-400 font-bold w-14">C1</th>
+                <th className="text-center py-2.5 px-2 text-gray-400 font-bold w-14">C2</th>
+                <th className="text-center py-2.5 px-2 text-gray-400 font-bold w-28">Calificación final</th>
+                <th className="text-center py-2.5 px-2 text-gray-400 font-bold w-24">Familia</th>
+                <th className="text-center py-2.5 px-2 text-gray-400 font-bold w-12">Ver</th>
               </tr></thead>
               <tbody>
                 {ALUMNOS_CIU.map(a=>{
@@ -1646,18 +1646,18 @@ function ModCiudadania() {
                   const c1=getNotaEfectiva(a.id,"c1");
                   const c2=getNotaEfectiva(a.id,"c2");
                   return <tr key={a.id} className="border-b border-gray-50 hover:bg-gray-50">
-                    <td className="py-1.5 px-1 text-gray-300">{a.id}</td>
-                    <td className="py-1.5 px-1 font-medium">{ncCiu(a)}</td>
-                    <td className="py-1.5 px-1 text-center font-bold text-gray-600">{c1||"—"}</td>
-                    <td className="py-1.5 px-1 text-center font-bold text-gray-600">{c2||"—"}</td>
-                    <td className="py-1.5 px-1 text-center">{finalBadge(a.id)}</td>
-                    <td className="py-1.5 px-1 text-center">
+                    <td className="py-2.5 px-2 text-gray-300">{a.id}</td>
+                    <td className="py-2.5 px-2 font-medium">{ncCiu(a)}</td>
+                    <td className="py-2.5 px-2 text-center font-bold text-gray-600">{c1||"—"}</td>
+                    <td className="py-2.5 px-2 text-center font-bold text-gray-600">{c2||"—"}</td>
+                    <td className="py-2.5 px-2 text-center">{finalBadge(a.id)}</td>
+                    <td className="py-2.5 px-2 text-center">
                       <button onClick={()=>abrirCit(a.id)}
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full border transition ${cits.length?"bg-amber-50 text-amber-700 border-amber-200":"bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100"}`}>
+                        className={`text-sm font-bold px-2 py-1 rounded-full border transition ${cits.length?"bg-amber-50 text-amber-700 border-amber-200":"bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100"}`}>
                         {cits.length?"✓ "+cits.length:"+ Citar"}
                       </button>
                     </td>
-                    <td className="py-1.5 px-1 text-center"><button onClick={()=>setModalAlumno(a.id)} className="text-gray-300 hover:text-indigo-500 text-sm">👁</button></td>
+                    <td className="py-2.5 px-2 text-center"><button onClick={()=>setModalAlumno(a.id)} className="text-gray-300 hover:text-indigo-500 text-sm">👁</button></td>
                   </tr>;
                 })}
               </tbody>
@@ -1666,7 +1666,7 @@ function ModCiudadania() {
         </Card>
 
         <div className="flex items-center justify-end gap-3">
-          {ciuSync==="error" && <span className="text-[10px] text-red-500 flex-1">⚠️ {ciuErr}</span>}
+          {ciuSync==="error" && <span className="text-sm text-red-500 flex-1">⚠️ {ciuErr}</span>}
           <button onClick={guardarNotasActual} disabled={ciuSync==="saving"||ciuSync==="loading"}
             className={`text-xs font-bold px-4 py-2 rounded-xl transition ${ciuSync==="saving"?"bg-gray-300 text-gray-500 cursor-not-allowed":"bg-indigo-600 hover:bg-indigo-700 text-white"}`}>
             {ciuSync==="saving"?<><span className="spin inline-block mr-1">↻</span>Guardando...</>:"💾 Guardar en Drive"}
@@ -1705,39 +1705,39 @@ function ModCiudadania() {
     {tabCiu==="alumnos" && <Card>
       <div className="flex justify-between items-center mb-3">
         <div>
-          <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Listado del curso</p>
-          <p className="text-[11px] text-gray-400">{alumnosCiu.length} alumnos/as</p>
+          <p className="text-sm font-black text-gray-500 uppercase tracking-widest">Listado del curso</p>
+          <p className="text-base text-gray-400">{alumnosCiu.length} alumnos/as</p>
         </div>
         <div className="flex items-center gap-2">
-          {syncAlumnos==="saving" && <span className="text-[10px] text-gray-400"><span className="spin inline-block">↻</span></span>}
-          {syncAlumnos==="ok"     && <span className="text-[10px] text-green-600 font-bold">✓ Drive</span>}
-          {syncAlumnos==="error"  && <span className="text-[10px] text-red-500 font-bold">✗ Error</span>}
+          {syncAlumnos==="saving" && <span className="text-sm text-gray-400"><span className="spin inline-block">↻</span></span>}
+          {syncAlumnos==="ok"     && <span className="text-sm text-green-600 font-bold">✓ Drive</span>}
+          {syncAlumnos==="error"  && <span className="text-sm text-red-500 font-bold">✗ Error</span>}
           <button onClick={()=>{setEditAp("");setEditNom("");setModalNuevoAlumno(true);}}
             className="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-3 py-1.5 rounded-lg">+ Agregar</button>
         </div>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-xs">
+        <table className="w-full text-sm">
           <thead><tr className="border-b border-gray-100">
-            <th className="text-left py-2 px-1 text-gray-400 font-bold w-6">#</th>
-            <th className="text-left py-2 px-1 text-gray-400 font-bold">Apellido</th>
-            <th className="text-left py-2 px-1 text-gray-400 font-bold">Nombre</th>
-            <th className="text-left py-2 px-1 text-gray-400 font-bold">Usuario</th>
-            <th className="text-center py-2 px-1 text-gray-400 font-bold w-20">Acciones</th>
+            <th className="text-left py-2.5 px-2 text-gray-400 font-bold w-8">#</th>
+            <th className="text-left py-2.5 px-2 text-gray-400 font-bold">Apellido</th>
+            <th className="text-left py-2.5 px-2 text-gray-400 font-bold">Nombre</th>
+            <th className="text-left py-2.5 px-2 text-gray-400 font-bold">Usuario</th>
+            <th className="text-center py-2.5 px-2 text-gray-400 font-bold w-24">Acciones</th>
           </tr></thead>
           <tbody>
             {[...alumnosCiu].sort((a,b)=>a.ap.localeCompare(b.ap)).map(a=>(
               <tr key={a.id} className="border-b border-gray-50 hover:bg-gray-50">
-                <td className="py-2 px-1 text-gray-300">{a.id}</td>
-                <td className="py-2 px-1 font-medium">{a.ap}</td>
-                <td className="py-2 px-1">{a.nom}</td>
-                <td className="py-2 px-1 text-gray-500">{a.usuario||"—"}</td>
-                <td className="py-2 px-1 text-center">
+                <td className="py-2.5 px-2 text-gray-300">{a.id}</td>
+                <td className="py-2.5 px-2 font-medium">{a.ap}</td>
+                <td className="py-2.5 px-2">{a.nom}</td>
+                <td className="py-2.5 px-2 text-gray-500">{a.usuario||"—"}</td>
+                <td className="py-2.5 px-2 text-center">
                   <div className="flex gap-1 justify-center">
                     <button onClick={()=>{setEditAp(a.ap);setEditNom(a.nom);setEditUsuario(a.usuario||"");setModalEditAlumno(a);}}
-                      className="text-[10px] px-2 py-0.5 rounded border border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-bold">✏️</button>
+                      className="text-sm px-2 py-1 rounded border border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-bold">✏️</button>
                     <button onClick={()=>eliminarAlumno(a.id)}
-                      className="text-[10px] px-2 py-0.5 rounded border border-red-200 text-red-500 hover:bg-red-50 font-bold">🗑</button>
+                      className="text-sm px-2 py-1 rounded border border-red-200 text-red-500 hover:bg-red-50 font-bold">🗑</button>
                   </div>
                 </td>
               </tr>
@@ -1756,7 +1756,7 @@ function ModCiudadania() {
             <button onClick={()=>{
               const a=ALUMNOS_CIU.find(x=>x.id===modalAlumno);
               setEditAp(a.ap); setEditNom(a.nom); setEditUsuario(a.usuario||""); setModalEditAlumno(a); setModalAlumno(null);
-            }} className="text-[10px] px-2 py-1 rounded-lg border border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-bold">✏️ Editar</button>
+            }} className="text-sm px-2 py-1 rounded-lg border border-indigo-200 text-indigo-600 hover:bg-indigo-50 font-bold">✏️ Editar</button>
             <button onClick={()=>setModalAlumno(null)} className="text-gray-300 hover:text-gray-600 text-lg leading-none">×</button>
           </div>
         </div>
@@ -1794,7 +1794,7 @@ function ModCiudadania() {
         </div>
         <div className="space-y-3">
           <div>
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 block">Motivo/s</label>
+            <label className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-2 block">Motivo/s</label>
             <div className="grid grid-cols-2 gap-2">
               {["Inasistencias","Conducta","Trabajo en clase","Rendimiento académico","Otras"].map(m=>(
                 <label key={m} className={`flex items-center gap-2 text-xs cursor-pointer p-2 rounded-lg border transition ${citMotivos.includes(m)?"bg-indigo-50 border-indigo-300":"bg-white border-gray-200 hover:bg-gray-50"} ${m==="Otras"?"col-span-2":""}`}>
@@ -1843,7 +1843,7 @@ function ModCiudadania() {
           <Inp label="Apellido" value={editAp} onChange={e=>setEditAp(e.target.value)}/>
           <Inp label="Nombre" value={editNom} onChange={e=>setEditNom(e.target.value)}/>
           <Inp label="Usuario (para el portal del alumno)" value={editUsuario} onChange={e=>setEditUsuario(e.target.value)} placeholder="Ej: lucia.garcia"/>
-          <p className="text-[10px] text-gray-400 -mt-2">El alumno ingresa al portal con este usuario + su ID de 3 dígitos ({String(modalEditAlumno.id).padStart(3,"0")}) como código.</p>
+          <p className="text-sm text-gray-400 -mt-2">El alumno ingresa al portal con este usuario + su ID de 3 dígitos ({String(modalEditAlumno.id).padStart(3,"0")}) como código.</p>
           <div className="flex justify-between items-center pt-1">
             <button onClick={()=>eliminarAlumno(modalEditAlumno.id)}
               className="text-xs border border-red-200 text-red-500 hover:bg-red-50 font-bold px-3 py-2 rounded-xl transition">
@@ -2207,18 +2207,18 @@ function PortalAlumno() {
         <Card>
           <p className="text-center text-2xl mb-1">🎓</p>
           <h1 className="text-center font-bold text-sm mb-1">Portal del Alumno</h1>
-          <p className="text-center text-[11px] text-gray-400 mb-4">Construcción de la Ciudadanía</p>
+          <p className="text-center text-base text-gray-400 mb-4">Construcción de la Ciudadanía</p>
           <div className="space-y-3">
             <Inp label="Usuario" value={usuario} onChange={e=>setUsuario(e.target.value)} placeholder="Tu usuario" onKeyDown={e=>e.key==="Enter"&&ingresar()}/>
             <Inp label="Código (tu número de alumno)" value={codigo} onChange={e=>setCodigo(e.target.value)} placeholder="Ej: 101" onKeyDown={e=>e.key==="Enter"&&ingresar()}/>
-            {error && <p className="text-[11px] text-red-500 font-medium">{error}</p>}
+            {error && <p className="text-base text-red-500 font-medium">{error}</p>}
             <button onClick={ingresar} disabled={cargando}
               className={`w-full text-xs font-bold px-4 py-2.5 rounded-xl transition ${cargando?"bg-gray-200 text-gray-400":"bg-indigo-600 hover:bg-indigo-700 text-white"}`}>
               {cargando?"Ingresando...":"Ingresar"}
             </button>
           </div>
         </Card>
-        <p className="text-center text-[10px] text-gray-300 mt-4">Si no tenés usuario o código, pedíselo a tu profesor/a.</p>
+        <p className="text-center text-sm text-gray-300 mt-4">Si no tenés usuario o código, pedíselo a tu profesor/a.</p>
       </div>
     </div>;
   }
@@ -2242,10 +2242,10 @@ function PortalAlumno() {
       <div className="px-4 pt-6 space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Portal del Alumno</p>
+            <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">Portal del Alumno</p>
             <h1 className="font-bold text-base">{alumno.ap}, {alumno.nom}</h1>
           </div>
-          <button onClick={salir} className="text-[10px] font-bold text-gray-400 hover:text-red-500 border border-gray-200 rounded-lg px-2 py-1">Salir</button>
+          <button onClick={salir} className="text-sm font-bold text-gray-400 hover:text-red-500 border border-gray-200 rounded-lg px-2 py-1">Salir</button>
         </div>
 
         <button onClick={descargarPDF} className="w-full text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl transition flex items-center justify-center gap-2">
@@ -2253,19 +2253,19 @@ function PortalAlumno() {
         </button>
 
         <Card>
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Mi asistencia</p>
+          <p className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-3">Mi asistencia</p>
           <div className="grid grid-cols-3 gap-2">
             {[{v:pres,l:"Presencias",c:"text-green-600"},{v:aus,l:"Ausencias",c:"text-red-600"},{v:just,l:"Justificadas",c:"text-blue-600"}].map(({v,l,c})=>
               <div key={l} className="bg-gray-50 rounded-xl p-2 text-center">
                 <p className={`font-bold text-lg ${c}`}>{v}</p>
-                <p className="text-[9px] text-gray-400 font-bold uppercase">{l}</p>
+                <p className="text-xs text-gray-400 font-bold uppercase">{l}</p>
               </div>
             )}
           </div>
         </Card>
 
         <Card>
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Mis trabajos prácticos</p>
+          <p className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-3">Mis trabajos prácticos</p>
           {tps.length===0 && <p className="text-xs text-gray-400">Todavía no hay TPs cargados.</p>}
           <div className="space-y-2">
             {tps.map(tp=>{
@@ -2277,11 +2277,11 @@ function PortalAlumno() {
               return <div key={tp.id} className="flex items-center justify-between border-b border-gray-50 last:border-0 py-2">
                 <div>
                   <p className="text-xs font-medium">TP {tp.num} — {tp.nombre}</p>
-                  {tp.fecha && <p className="text-[10px] text-gray-400">Entrega: {fmtFecha(tp.fecha)}</p>}
+                  {tp.fecha && <p className="text-sm text-gray-400">Entrega: {fmtFecha(tp.fecha)}</p>}
                 </div>
                 <div className="text-right">
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${color}`}>{txt}</span>
-                  {e.nota && <p className="text-[10px] text-gray-500 mt-0.5">Nota: {e.nota}</p>}
+                  <span className={`text-sm font-bold px-2 py-1 rounded-full border ${color}`}>{txt}</span>
+                  {e.nota && <p className="text-sm text-gray-500 mt-0.5">Nota: {e.nota}</p>}
                 </div>
               </div>;
             })}
@@ -2289,12 +2289,12 @@ function PortalAlumno() {
         </Card>
 
         <Card>
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Mis notas</p>
+          <p className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-3">Mis notas</p>
           {!notas && <p className="text-xs text-gray-400">Todavía no hay notas cargadas.</p>}
           {notas && <div className="grid grid-cols-2 gap-2 text-xs">
             {NOTAS_HEADERS.map(h=>(
               <div key={h} className="bg-gray-50 rounded-lg px-2 py-1.5 flex justify-between items-center">
-                <span className="text-[10px] text-gray-400 font-bold">{h}</span>
+                <span className="text-sm text-gray-400 font-bold">{h}</span>
                 <span className="font-medium">{notas[h]||"—"}</span>
               </div>
             ))}
