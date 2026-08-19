@@ -1018,7 +1018,7 @@ function ModCiudadania() {
       const tp = {id:"tp"+Date.now(), num, nombre, fecha:tpFec, grupal:tpGrup==="si"};
       const nuevoTps = [...tps, tp];
       const nuevoEst = {...tpEstados, [tp.id]:{}};
-      ALUMNOS_CIU.forEach(a=>{ nuevoEst[tp.id][a.id]={estado:"NE",nota:""}; });
+      ALUMNOS_CIU.forEach(a=>{ nuevoEst[tp.id][a.id]={estado:"NE",nota:"-"}; });
       saveTps(nuevoTps, nuevoEst);
       setSelTP(tp.id);
     }
@@ -1026,7 +1026,14 @@ function ModCiudadania() {
     setTpEditId(null);
   };
   const setTPEstado = (tpId, alumId, campo, val) => {
-    const nuevoEst = {...tpEstados, [tpId]:{...(tpEstados[tpId]||{}), [alumId]:{...(tpEstados[tpId]?.[alumId]||{estado:"NE",nota:""}), [campo]:val}}};
+    const actual = tpEstados[tpId]?.[alumId] || {estado:"NE", nota:""};
+    let patch = { [campo]: val };
+    // Autocompletar la nota según el estado de entrega (el profesor puede sobreescribirla después)
+    if (campo === "estado") {
+      if (val === "FT") patch.nota = "+";
+      else if (val === "NE") patch.nota = "-";
+    }
+    const nuevoEst = {...tpEstados, [tpId]:{...(tpEstados[tpId]||{}), [alumId]:{...actual, ...patch}}};
     setTpEst(nuevoEst); CIU_LS.set("tpest",nuevoEst);
     driveGuardarTPs(tps, nuevoEst);
   };
@@ -1499,9 +1506,11 @@ function ModCiudadania() {
         </select>
       );
       const NUM_SEL = ({id, campo, placeholder="—"}) => (
-        <input type="number" min="1" max="10" value={getNotaEfectiva(id,campo)||""} placeholder={placeholder}
-          onChange={ev=>setNotaEdit(id,campo,ev.target.value)}
-          className="w-10 text-center border border-gray-200 rounded px-1 py-0.5 text-[10px] bg-white"/>
+        <select value={getNotaEfectiva(id,campo)||""} onChange={ev=>setNotaEdit(id,campo,ev.target.value)}
+          className="w-12 text-center border border-gray-200 rounded px-1 py-0.5 text-[10px] bg-white">
+          <option value="">{placeholder}</option>
+          {[1,2,3,4,5,6,7,8,9,10].map(n=><option key={n} value={n}>{n}</option>)}
+        </select>
       );
       const finalBadge = (id) => {
         const f = calcularFinal(id);
