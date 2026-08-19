@@ -1300,7 +1300,7 @@ function ModCiudadania() {
         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-4 mb-2">Calificaciones anuales</p>
         {/* Bimestres y cuatrimestres */}
         <div className="grid grid-cols-2 gap-2 mb-3">
-          {[{k:"b1",l:"1° Bimestre"},{k:"b2",l:"2° Bimestre"},{k:"c1",l:"1° Cuatrim."},{k:"b3",l:"3° Bimestre"},{k:"b4",l:"4° Bimestre"},{k:"c2",l:"2° Cuatrim."}].map(({k,l})=>{
+          {[{k:"b1",l:"1° Bimestre"},{k:"c1",l:"1° Cuatrim."},{k:"b3",l:"3° Bimestre"},{k:"c2",l:"2° Cuatrim."}].map(({k,l})=>{
             const val=getCal(id)[k]||"—";
             const isC=k==="c1"||k==="c2";
             const bgC=isC?"bg-purple-50 border-purple-100":"bg-gray-50 border-gray-100";
@@ -1529,7 +1529,6 @@ function ModCiudadania() {
                 <th className="text-left py-1.5 px-1 text-gray-400 font-bold w-6">#</th>
                 <th className="text-left py-1.5 px-1 text-gray-400 font-bold">Alumno/a</th>
                 <th className="text-center py-1.5 px-1 text-gray-400 font-bold w-16">1° Bim<br/><span className="font-normal text-[9px]">TEA/TEP/TED</span></th>
-                <th className="text-center py-1.5 px-1 text-gray-400 font-bold w-16">2° Bim<br/><span className="font-normal text-[9px]">TEA/TEP/TED</span></th>
                 <th className="text-center py-1.5 px-1 text-gray-400 font-bold w-16">1° Cuatrim.<br/><span className="font-normal text-[9px]">nota 1-10</span></th>
                 <th className="text-center py-1.5 px-1 text-gray-400 font-bold w-10">Ver</th>
               </tr></thead>
@@ -1539,7 +1538,6 @@ function ModCiudadania() {
                     <td className="py-1.5 px-1 text-gray-300">{a.id}</td>
                     <td className="py-1.5 px-1 font-medium">{ncCiu(a)}</td>
                     <td className="py-1.5 px-1 text-center"><BIM_SEL id={a.id} campo="b1"/></td>
-                    <td className="py-1.5 px-1 text-center"><BIM_SEL id={a.id} campo="b2"/></td>
                     <td className="py-1.5 px-1 text-center"><NUM_SEL id={a.id} campo="c1"/></td>
                     <td className="py-1.5 px-1 text-center"><button onClick={()=>setModalAlumno(a.id)} className="text-gray-300 hover:text-indigo-500 text-sm">👁</button></td>
                   </tr>
@@ -1558,7 +1556,6 @@ function ModCiudadania() {
                 <th className="text-left py-1.5 px-1 text-gray-400 font-bold w-6">#</th>
                 <th className="text-left py-1.5 px-1 text-gray-400 font-bold">Alumno/a</th>
                 <th className="text-center py-1.5 px-1 text-gray-400 font-bold w-16">3° Bim<br/><span className="font-normal text-[9px]">TEA/TEP/TED</span></th>
-                <th className="text-center py-1.5 px-1 text-gray-400 font-bold w-16">4° Bim<br/><span className="font-normal text-[9px]">TEA/TEP/TED</span></th>
                 <th className="text-center py-1.5 px-1 text-gray-400 font-bold w-16">2° Cuatrim.<br/><span className="font-normal text-[9px]">nota 1-10</span></th>
                 <th className="text-center py-1.5 px-1 text-gray-400 font-bold w-10">Ver</th>
               </tr></thead>
@@ -1568,7 +1565,6 @@ function ModCiudadania() {
                     <td className="py-1.5 px-1 text-gray-300">{a.id}</td>
                     <td className="py-1.5 px-1 font-medium">{ncCiu(a)}</td>
                     <td className="py-1.5 px-1 text-center"><BIM_SEL id={a.id} campo="b3"/></td>
-                    <td className="py-1.5 px-1 text-center"><BIM_SEL id={a.id} campo="b4"/></td>
                     <td className="py-1.5 px-1 text-center"><NUM_SEL id={a.id} campo="c2"/></td>
                     <td className="py-1.5 px-1 text-center"><button onClick={()=>setModalAlumno(a.id)} className="text-gray-300 hover:text-indigo-500 text-sm">👁</button></td>
                   </tr>
@@ -2145,7 +2141,7 @@ function PortalAlumno() {
     try { sessionStorage.removeItem(SESION_KEY); } catch {}
   };
 
-  const NOTAS_HEADERS_PDF = ["1° Bim","2° Bim","1° Cuatrim.","3° Bim","4° Bim","2° Cuatrim.","Nota Dic.","Result. Dic.","Nota Feb.","Cal. Final","Estado Final"];
+  const NOTAS_HEADERS_PDF = ["1° Bim","1° Cuatrim.","3° Bim","2° Cuatrim.","Nota Dic.","Result. Dic.","Nota Feb.","Cal. Final","Estado Final"];
 
   const descargarPDF = () => {
     if(!sesion) return;
@@ -2238,12 +2234,8 @@ function PortalAlumno() {
   const aus   = diasAsist.filter(f=>asist[f]==="A").length;
   const just  = diasAsist.filter(f=>asist[f]==="J").length;
 
-  const CAMPOS_NOTAS = [
-    ["b1","1° Bim"],["b2","2° Bim"],["c1","1° Cuatrim."],["b3","3° Bim"],["b4","4° Bim"],["c2","2° Cuatrim."],
-    ["dic_nota","Nota Dic."],["dic_result","Result. Dic."],["feb_nota","Nota Feb."],["cal_final","Cal. Final"],["estado_final","Estado Final"]
-  ];
   // El backend devuelve las columnas con el texto exacto de la hoja
-  const NOTAS_HEADERS = ["1° Bim","2° Bim","1° Cuatrim.","3° Bim","4° Bim","2° Cuatrim.","Nota Dic.","Result. Dic.","Nota Feb.","Cal. Final","Estado Final"];
+  const NOTAS_HEADERS = ["1° Bim","1° Cuatrim.","3° Bim","2° Cuatrim.","Nota Dic.","Result. Dic.","Nota Feb.","Cal. Final","Estado Final"];
 
   return <div className="min-h-screen bg-gray-50">
     <div className="max-w-lg mx-auto pb-10">
